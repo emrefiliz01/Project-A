@@ -12,6 +12,13 @@ public class GameManager : MonoBehaviour
     [SerializeField] private ScratchCardData currentCardData;
     [SerializeField] private int maxCards = 20;
 
+    [Header("Star Scratch Card Settings")]
+    [SerializeField] private GameObject starScratchCardTemplate;
+    [SerializeField] private GameObject buyStarCardButton;
+    [SerializeField] private StarScratchCardScriptableObject starCardDataAsset;
+    [SerializeField] private ScratchCardData starCardData;
+    [SerializeField] private int starCardPrice = 100;
+
     [Header("Scene References")]
     [SerializeField] private GameObject mysteryCouponTemplate;
     [SerializeField] private Transform cardDestination;
@@ -34,6 +41,7 @@ public class GameManager : MonoBehaviour
 
     private GameObject currentCard;
     private ScratchCard currentScratchCard;
+    private MultiZoneScratchCard currentMultiCard;
     private RewardManager currentRewardManager;
     private bool rewardReady = false;
 
@@ -46,6 +54,11 @@ public class GameManager : MonoBehaviour
         if (mysteryCouponTemplate != null)
         {
             mysteryCouponTemplate.SetActive(false);
+        }
+
+        if (starScratchCardTemplate != null)
+        {
+            starScratchCardTemplate.SetActive(false);
         }
 
         if (collectRewardButton != null)
@@ -69,6 +82,10 @@ public class GameManager : MonoBehaviour
                 {
                     TryBuyCard();
                 }
+                else if (buyStarCardButton != null && hit.collider.gameObject == buyStarCardButton)
+                {
+                    TryBuyStarCard();
+                }
                 else if (collectRewardButton != null && collectRewardButton.activeSelf
                          && hit.collider.gameObject == collectRewardButton)
                 {
@@ -78,7 +95,7 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    private void TryBuyCard()
+    public void TryBuyCard()
     {
         if (activeCards.Count >= maxCards)
         {
@@ -110,14 +127,103 @@ public class GameManager : MonoBehaviour
             rm.Initialize(currentCardData);
         }
 
-        ScratchCard sc = newCard.GetComponentInChildren<ScratchCard>();
-        if (sc != null)
+        MultiZoneScratchCard multiCard = newCard.GetComponent<MultiZoneScratchCard>();
+        if (multiCard != null)
         {
             GameObject cardRef = newCard;
-            ScratchCard scRef = sc;
             RewardManager rmRef = rm;
+            MultiZoneScratchCard multiRef = multiCard;
 
-            sc.OnScratched += (percentage) => OnCardScratched(cardRef, scRef, rmRef, percentage);
+            if (currentCardData != null && currentCardData.rewardsList != null)
+            {
+                multiCard.InitializeSpotRewards(currentCardData.rewardsList);
+            }
+
+            multiCard.OnCardScratchedEvent += (percentage) => OnCardScratched(cardRef, null, multiRef, rmRef, percentage);
+            multiCard.OnAllZonesRevealedEvent += (mCard) => OnCardScratched(cardRef, null, multiRef, rmRef, 1.0f);
+        }
+        else
+        {
+            ScratchCard sc = newCard.GetComponentInChildren<ScratchCard>();
+            if (sc != null)
+            {
+                if (currentCardData != null)
+                {
+                    sc.scratchThreshold = currentCardData.scratchThreshold;
+                }
+
+                GameObject cardRef = newCard;
+                ScratchCard scRef = sc;
+                RewardManager rmRef = rm;
+
+                sc.OnScratched += (percentage) => OnCardScratched(cardRef, scRef, null, rmRef, percentage);
+            }
+        }
+
+        activeCards.Add(newCard);
+
+        Vector3 destination = GetRandomDestinationPosition();
+        newCard.transform.DOMove(destination, cardMoveDuration)
+            .SetEase(cardMoveEase)
+            .OnComplete(() =>
+            {
+                CardZoomController czc = newCard.GetComponent<CardZoomController>();
+                if (czc != null)
+                {
+                    czc.SetHomePosition(destination, newCard.transform.rotation, newCard.transform.localScale);
+                }
+            });
+    }
+
+    public void TryBuyStarCard()
+    {
+        if (activeCards.Count >= maxCards)
+        {
+            Debug.Log("Card limit reached! Scratch some cards first. (" + activeCards.Count + "/" + maxCards + ")");
+            return;
+        }
+
+        if (starScratchCardTemplate == null)
+        {
+            Debug.LogWarning("GameManager: starScratchCardTemplate is not assigned!");
+            return;
+        }
+
+        int price = starCardDataAsset != null ? starCardDataAsset.purchasePrice : (starCardData != null ? starCardData.purchasePrice : starCardPrice);
+
+        if (playerMoney < price)
+        {
+            Debug.Log("Not enough money! You need $" + price + " but only have $" + playerMoney);
+            return;
+        }
+
+        playerMoney -= price;
+        UpdateMoneyUI();
+        Debug.Log("Bought Star Scratch Card for $" + price + ". Remaining balance: $" + playerMoney + " | Cards: " + (activeCards.Count + 1) + "/" + maxCards);
+
+        GameObject newCard = Instantiate(starScratchCardTemplate);
+        newCard.SetActive(true);
+        newCard.transform.position = starScratchCardTemplate.transform.position;
+        newCard.transform.rotation = starScratchCardTemplate.transform.rotation;
+        newCard.transform.localScale = starScratchCardTemplate.transform.localScale;
+
+        MultiZoneScratchCard multiCard = newCard.GetComponent<MultiZoneScratchCard>();
+        if (multiCard != null)
+        {
+            GameObject cardRef = newCard;
+            MultiZoneScratchCard multiRef = multiCard;
+
+            if (starCardDataAsset != null)
+            {
+                multiCard.InitializeFromStarData(starCardDataAsset);
+            }
+            else if (starCardData != null && starCardData.rewardsList != null)
+            {
+                multiCard.InitializeSpotRewards(starCardData.rewardsList);
+            }
+
+            multiCard.OnCardScratchedEvent += (percentage) => OnCardScratched(cardRef, null, multiRef, null, percentage);
+            multiCard.OnAllZonesRevealedEvent += (mCard) => OnCardScratched(cardRef, null, multiRef, null, 1.0f);
         }
 
         activeCards.Add(newCard);
@@ -165,27 +271,51 @@ public class GameManager : MonoBehaviour
         return cardDestination.position;
     }
 
-    private void OnCardScratched(GameObject card, ScratchCard sc, RewardManager rm, float scratchPercentage)
+    private void OnCardScratched(GameObject card, ScratchCard sc, MultiZoneScratchCard multiCard, RewardManager rm, float scratchPercentage)
     {
         if (rewardRevealedCards.Contains(card)) return;
 
-        if (scratchPercentage >= scratchThreshold)
+        float targetThreshold = scratchThreshold;
+        if (multiCard != null)
+        {
+            targetThreshold = multiCard.OverallCompletionThreshold;
+        }
+        else if (sc != null)
+        {
+            targetThreshold = sc.scratchThreshold;
+        }
+        else if (currentCardData != null)
+        {
+            targetThreshold = currentCardData.scratchThreshold;
+        }
+
+        if (scratchPercentage >= targetThreshold || (multiCard != null && multiCard.IsCompleted))
         {
             rewardRevealedCards.Add(card);
 
             currentCard = card;
             currentScratchCard = sc;
+            currentMultiCard = multiCard;
             currentRewardManager = rm;
             rewardReady = true;
 
-            Debug.Log("Card " + Mathf.FloorToInt(scratchPercentage * 100) + "% scratched! Reward revealed!");
+            int rewardValue = 0;
+            if (multiCard != null)
+            {
+                rewardValue = multiCard.TotalWinnings;
+            }
+            else if (rm != null)
+            {
+                rewardValue = rm.ActiveRewardValue;
+            }
+
+            Debug.Log("Card " + Mathf.FloorToInt(scratchPercentage * 100) + "% scratched! Total Reward: $" + rewardValue);
 
             if (collectRewardButton != null)
             {
                 collectRewardButton.SetActive(true);
             }
 
-            int rewardValue = rm != null ? rm.ActiveRewardValue : 0;
             if (rewardButtonText != null)
             {
                 rewardButtonText.text = "+$" + rewardValue;
@@ -198,7 +328,11 @@ public class GameManager : MonoBehaviour
         if (!rewardReady || currentCard == null) return;
 
         int rewardValue = 0;
-        if (currentRewardManager != null)
+        if (currentMultiCard != null)
+        {
+            rewardValue = currentMultiCard.TotalWinnings;
+        }
+        else if (currentRewardManager != null)
         {
             rewardValue = currentRewardManager.ActiveRewardValue;
             currentRewardManager.ClaimReward();
@@ -219,6 +353,7 @@ public class GameManager : MonoBehaviour
         Destroy(currentCard);
         currentCard = null;
         currentScratchCard = null;
+        currentMultiCard = null;
         currentRewardManager = null;
         rewardReady = false;
 

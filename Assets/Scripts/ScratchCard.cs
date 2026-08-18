@@ -9,7 +9,9 @@ public class ScratchCard : MonoBehaviour
 
     public bool IsScratchable { get; set; } = false;
 
-    // Scratch progress tracking variables
+    [Range(0.1f, 1.0f)]
+    public float scratchThreshold = 0.90f;
+
     public Action<float> OnScratched;
     private bool[] isClearedArray;
     private int initialSolidPixels = 0;
@@ -50,10 +52,7 @@ public class ScratchCard : MonoBehaviour
 
         Texture2D originalTex = spriteRenderer.sprite.texture;
 
-        // Create writeable texture copy
-        scratchTex = new Texture2D(originalTex.width, originalTex.height, TextureFormat.RGBA32, false);
-        scratchTex.SetPixels(originalTex.GetPixels());
-        scratchTex.Apply();
+        scratchTex = DuplicateTexture(originalTex);
 
         spriteRenderer.sprite = Sprite.Create(
             scratchTex,
@@ -62,7 +61,6 @@ public class ScratchCard : MonoBehaviour
             spriteRenderer.sprite.pixelsPerUnit
         );
 
-        // Count initial solid pixels
         int w = scratchTex.width;
         int h = scratchTex.height;
         isClearedArray = new bool[w * h];
@@ -87,7 +85,6 @@ public class ScratchCard : MonoBehaviour
     {
         if (!IsScratchable)
         {
-            // If card is clicked while not yet scratchable, zoom it in
             if (Input.GetMouseButtonDown(0))
             {
                 Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -167,5 +164,56 @@ public class ScratchCard : MonoBehaviour
     {
         if (initialSolidPixels == 0) return 1f;
         return 1f - ((float)currentSolidPixels / initialSolidPixels);
+    }
+
+    public void ClearAll()
+    {
+        if (scratchTex == null || !isInitialized) return;
+
+        int w = scratchTex.width;
+        int h = scratchTex.height;
+        Color[] clearPixels = new Color[w * h];
+        for (int i = 0; i < clearPixels.Length; i++)
+        {
+            clearPixels[i] = Color.clear;
+            isClearedArray[i] = true;
+        }
+        scratchTex.SetPixels(clearPixels);
+        scratchTex.Apply();
+        currentSolidPixels = 0;
+        OnScratched?.Invoke(1.0f);
+    }
+
+    private Texture2D DuplicateTexture(Texture2D source)
+    {
+        if (source == null) return null;
+
+        if (source.isReadable)
+        {
+            Texture2D copy = new Texture2D(source.width, source.height, TextureFormat.RGBA32, false);
+            copy.SetPixels(source.GetPixels());
+            copy.Apply();
+            return copy;
+        }
+
+        RenderTexture renderTex = RenderTexture.GetTemporary(
+            source.width,
+            source.height,
+            0,
+            RenderTextureFormat.ARGB32,
+            RenderTextureReadWrite.sRGB);
+
+        Graphics.Blit(source, renderTex);
+        RenderTexture previous = RenderTexture.active;
+        RenderTexture.active = renderTex;
+
+        Texture2D readableTex = new Texture2D(source.width, source.height, TextureFormat.RGBA32, false);
+        readableTex.ReadPixels(new Rect(0, 0, renderTex.width, renderTex.height), 0, 0);
+        readableTex.Apply();
+
+        RenderTexture.active = previous;
+        RenderTexture.ReleaseTemporary(renderTex);
+
+        return readableTex;
     }
 }

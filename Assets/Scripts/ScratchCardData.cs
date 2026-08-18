@@ -8,5 +8,9 @@ public class ScratchCardData : ScriptableObject
     public int purchasePrice = 10;
     public Sprite coverSprite;
     public Sprite cardBaseSprite;
+
+    [Range(0.1f, 1.0f)]
+    public float scratchThreshold = 0.90f;
+
     public List<Reward> rewardsList = new List<Reward>();
 }
