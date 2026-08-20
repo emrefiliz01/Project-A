@@ -5,6 +5,7 @@ using System.Collections.Generic;
 public class ScratchCardData : ScriptableObject
 {
     public string cardName;
+    public string cardDescription = "Match 2 to WIN";
     public int purchasePrice = 10;
     public Sprite coverSprite;
     public Sprite cardBaseSprite;

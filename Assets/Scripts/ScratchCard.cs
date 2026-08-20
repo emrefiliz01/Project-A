@@ -88,14 +88,18 @@ public class ScratchCard : MonoBehaviour
             if (Input.GetMouseButtonDown(0))
             {
                 Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-                RaycastHit2D hit = Physics2D.GetRayIntersection(ray);
+                RaycastHit2D[] hits = Physics2D.GetRayIntersectionAll(ray);
 
-                if (hit.collider != null && hit.collider.gameObject == gameObject)
+                foreach (var hit in hits)
                 {
-                    CardZoomController zoomController = GetComponentInParent<CardZoomController>();
-                    if (zoomController != null)
+                    if (hit.collider != null && hit.collider.gameObject == gameObject)
                     {
-                        zoomController.ZoomToScratchMode();
+                        CardZoomController zoomController = GetComponentInParent<CardZoomController>();
+                        if (zoomController != null)
+                        {
+                            zoomController.ZoomToScratchMode();
+                        }
+                        break;
                     }
                 }
             }
@@ -105,20 +109,24 @@ public class ScratchCard : MonoBehaviour
         if (Input.GetMouseButton(0))
         {
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
-            RaycastHit2D hit = Physics2D.GetRayIntersection(ray);
+            RaycastHit2D[] hits = Physics2D.GetRayIntersectionAll(ray);
 
-            if (hit.collider != null && hit.collider.gameObject == gameObject)
+            foreach (var hit in hits)
             {
-                Vector3 localPos = transform.InverseTransformPoint(hit.point);
-                Bounds bounds = spriteRenderer.sprite.bounds;
+                if (hit.collider != null && hit.collider.gameObject == gameObject)
+                {
+                    Vector3 localPos = transform.InverseTransformPoint(hit.point);
+                    Bounds bounds = spriteRenderer.sprite.bounds;
 
-                float px = (localPos.x - bounds.min.x) / bounds.size.x;
-                float py = (localPos.y - bounds.min.y) / bounds.size.y;
+                    float px = (localPos.x - bounds.min.x) / bounds.size.x;
+                    float py = (localPos.y - bounds.min.y) / bounds.size.y;
 
-                int tx = Mathf.FloorToInt(px * scratchTex.width);
-                int ty = Mathf.FloorToInt(py * scratchTex.height);
+                    int tx = Mathf.FloorToInt(px * scratchTex.width);
+                    int ty = Mathf.FloorToInt(py * scratchTex.height);
 
-                EraseCircle(tx, ty);
+                    EraseCircle(tx, ty);
+                    break;
+                }
             }
         }
     }

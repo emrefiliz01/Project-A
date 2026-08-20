@@ -22,6 +22,8 @@ public class MultiZoneScratchCard : MonoBehaviour
     private int totalWinnings = 0;
 
     public ScratchZone[] Zones => zones;
+    public StarScratchCardScriptableObject StarCardData => starCardData;
+    public ScratchCardData DefaultCardData => defaultCardData;
     public bool IsCompleted { get; private set; } = false;
     public int TotalWinnings => totalWinnings;
 

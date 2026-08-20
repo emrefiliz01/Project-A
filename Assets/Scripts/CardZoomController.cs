@@ -40,6 +40,10 @@ public class CardZoomController : MonoBehaviour
         if (CurrentlyZoomedCard == this)
         {
             CurrentlyZoomedCard = null;
+            if (CardInfoPanelUI.Instance != null)
+            {
+                CardInfoPanelUI.Instance.HidePanel();
+            }
         }
     }
 
@@ -72,6 +76,11 @@ public class CardZoomController : MonoBehaviour
         isAnimating = true;
         SetScratchableState(false);
 
+        if (CardInfoPanelUI.Instance != null)
+        {
+            CardInfoPanelUI.Instance.ShowPanelForCard(gameObject);
+        }
+
         BoostSortingOrder();
 
         transform.DOMove(targetPosition, zoomDuration).SetEase(easeType);
@@ -93,6 +102,11 @@ public class CardZoomController : MonoBehaviour
 
         isAnimating = true;
         SetScratchableState(false);
+
+        if (CardInfoPanelUI.Instance != null)
+        {
+            CardInfoPanelUI.Instance.HidePanel();
+        }
 
         transform.DOMove(initialPosition, zoomDuration).SetEase(easeType);
         transform.DORotateQuaternion(initialRotation, zoomDuration).SetEase(easeType);

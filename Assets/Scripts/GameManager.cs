@@ -350,6 +350,12 @@ public class GameManager : MonoBehaviour
             currentScratchCard.OnScratched = null;
         }
 
+        // Hide the info panel immediately
+        if (CardInfoPanelUI.Instance != null)
+        {
+            CardInfoPanelUI.Instance.HidePanel();
+        }
+
         Destroy(currentCard);
         currentCard = null;
         currentScratchCard = null;

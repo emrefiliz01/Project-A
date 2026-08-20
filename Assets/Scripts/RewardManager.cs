@@ -22,6 +22,7 @@ public class RewardManager : MonoBehaviour
     private Reward activeReward;
     private int totalWinnings = 0;
 
+    public ScratchCardData CardData => cardData;
     public int TotalWinnings => totalWinnings;
     public Reward ActiveReward => activeReward;
     public int ActiveRewardValue => activeReward != null ? activeReward.value : 0;

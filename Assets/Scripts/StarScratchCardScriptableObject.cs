@@ -6,6 +6,7 @@ public class StarScratchCardScriptableObject : ScriptableObject
 {
     [Header("Card Info")]
     public string cardName = "Star Scratch Card";
+    public string cardDescription = "Match 2 to WIN";
     public int purchasePrice = 20;
 
     [Header("Sprites")]

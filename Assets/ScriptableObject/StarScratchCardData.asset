@@ -13,6 +13,7 @@ MonoBehaviour:
   m_Name: StarScratchCardData
   m_EditorClassIdentifier: 
   cardName: Star Scratch Card
+  cardDescription: Match 2 to WIN
   purchasePrice: 100
   cardBaseSprite: {fileID: 21300000, guid: 4dbc674238bccdd4a80110faa7beeff2, type: 3}
   zoneCoverSprite: {fileID: 21300000, guid: ea8afaaeb263e554cb2257fa2e215a92, type: 3}
@@ -21,16 +22,16 @@ MonoBehaviour:
     value: 100
     rewardSprite: {fileID: 21300000, guid: a016c9dd60246ca48be472b5a86df4ed, type: 3}
     rewardText: 
-    weight: 60
+    weight: 50
   - rewardName: Coins
     value: 250
     rewardSprite: {fileID: 21300000, guid: de8d6d085ee4b3445ae7e6714b33bf35, type: 3}
     rewardText: 
-    weight: 20
+    weight: 40
   - rewardName: CoinBag
     value: 500
     rewardSprite: {fileID: 21300000, guid: bfc6daa137d13ce4ba0da0731dae2740, type: 3}
     rewardText: 
-    weight: 20
+    weight: 10
   zoneRevealThreshold: 0.8
   overallCardThreshold: 1
