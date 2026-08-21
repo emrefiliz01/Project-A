@@ -201,18 +201,56 @@ public class MultiZoneScratchCard : MonoBehaviour
 
             if (rolledReward != null)
             {
-                totalWinnings += rolledReward.value;
-
                 if (i < rewardRenderers.Length && rewardRenderers[i] != null)
                 {
                     rewardRenderers[i].sprite = rolledReward.rewardSprite;
                     rewardRenderers[i].enabled = true;
-                    Debug.Log($"[StarScratchCard] Spot #{i + 1} reward sprite set to: {(rolledReward.rewardSprite != null ? rolledReward.rewardSprite.name : "NULL")} (${rolledReward.value})");
+                    Debug.Log($"[StarScratchCard] Spot #{i + 1} rolled: {(rolledReward.rewardSprite != null ? rolledReward.rewardSprite.name : "NULL")} (${rolledReward.value})");
                 }
             }
         }
 
-        Debug.Log($"[StarScratchCard] Total potential winnings across all spots: ${totalWinnings}");
+        CalculateTotalWinnings();
+        Debug.Log($"[StarScratchCard] Final Total Winnings based on symbol matches: ${totalWinnings}");
+    }
+
+    public int CalculateTotalWinnings()
+    {
+        totalWinnings = 0;
+        if (assignedSpotRewards == null || assignedSpotRewards.Count == 0) return 0;
+
+        Dictionary<string, (Reward reward, int count)> rewardCounts = new Dictionary<string, (Reward, int)>();
+
+        foreach (var r in assignedSpotRewards)
+        {
+            if (r == null) continue;
+            string key = !string.IsNullOrEmpty(r.rewardName) ? r.rewardName : r.value.ToString();
+            if (rewardCounts.ContainsKey(key))
+            {
+                var entry = rewardCounts[key];
+                rewardCounts[key] = (entry.reward, entry.count + 1);
+            }
+            else
+            {
+                rewardCounts[key] = (r, 1);
+            }
+        }
+
+        foreach (var kvp in rewardCounts.Values)
+        {
+            if (kvp.count == 2)
+            {
+                totalWinnings += kvp.reward.value;
+                Debug.Log($"[StarScratchCard] Matched 2 '{kvp.reward.rewardName}'! Won ${kvp.reward.value}");
+            }
+            else if (kvp.count >= 3)
+            {
+                totalWinnings += kvp.reward.value * 2; // Double prize for 3 matches
+                Debug.Log($"[StarScratchCard] Matched 3 '{kvp.reward.rewardName}'! Won DOUBLE prize: ${kvp.reward.value * 2}");
+            }
+        }
+
+        return totalWinnings;
     }
 
     private Reward RollWeightedReward(List<Reward> rewardsPool)

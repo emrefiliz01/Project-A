@@ -21,5 +21,5 @@ public class StarScratchCardScriptableObject : ScriptableObject
     public float zoneRevealThreshold = 0.80f;
 
     [Range(0.1f, 1.0f)]
-    public float overallCardThreshold = 1.0f; // Default 1.0 (100% scratched required for StarScratchCard)
+    public float overallCardThreshold = 1.0f;
 }

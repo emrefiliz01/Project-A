@@ -26,6 +26,12 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject buyButton;
     [SerializeField] private TextMeshPro moneyText;
 
+    [Header("Price Image References (Affordability)")]
+    [SerializeField] private SpriteRenderer mysteryCouponPriceImage;
+    [SerializeField] private SpriteRenderer starCardPriceImage;
+    [SerializeField] private Color affordableColor = Color.white;
+    [SerializeField] private Color unaffordableColor = Color.red;
+
     [Header("Reward Button Text")]
     [SerializeField] private TextMeshPro rewardButtonText;
 
@@ -369,11 +375,71 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    private void Start()
+    {
+        UpdateMoneyUI();
+    }
+
     private void UpdateMoneyUI()
     {
         if (moneyText != null)
         {
             moneyText.text = "$" + playerMoney;
         }
+
+        UpdateAffordabilityUI();
+    }
+
+    private void UpdateAffordabilityUI()
+    {
+        int mysteryPrice = currentCardData != null ? currentCardData.purchasePrice : 10;
+        int starPrice = starCardDataAsset != null ? starCardDataAsset.purchasePrice : (starCardData != null ? starCardData.purchasePrice : starCardPrice);
+
+        // Mystery Coupon Price Image
+        if (mysteryCouponPriceImage == null && buyButton != null)
+        {
+            mysteryCouponPriceImage = GetPriceImage(buyButton);
+        }
+
+        if (mysteryCouponPriceImage != null)
+        {
+            mysteryCouponPriceImage.color = (playerMoney >= mysteryPrice) ? affordableColor : unaffordableColor;
+        }
+
+        // Star Scratch Card Price Image
+        if (starCardPriceImage == null && buyStarCardButton != null)
+        {
+            starCardPriceImage = GetPriceImage(buyStarCardButton);
+        }
+
+        if (starCardPriceImage != null)
+        {
+            starCardPriceImage.color = (playerMoney >= starPrice) ? affordableColor : unaffordableColor;
+        }
+    }
+
+    private SpriteRenderer GetPriceImage(GameObject buttonObj)
+    {
+        if (buttonObj == null) return null;
+
+        Transform priceT = buttonObj.transform.Find("PriceImage");
+        if (priceT == null) priceT = buttonObj.transform.Find("TextImage");
+
+        if (priceT != null)
+        {
+            return priceT.GetComponent<SpriteRenderer>();
+        }
+
+        SpriteRenderer buttonSR = buttonObj.GetComponent<SpriteRenderer>();
+        SpriteRenderer[] childSRs = buttonObj.GetComponentsInChildren<SpriteRenderer>(true);
+        foreach (var sr in childSRs)
+        {
+            if (sr != buttonSR)
+            {
+                return sr;
+            }
+        }
+
+        return null;
     }
 }

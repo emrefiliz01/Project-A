@@ -108,7 +108,7 @@ public class CardInfoPanelUI : MonoBehaviour
             cardDescriptionText.text = !string.IsNullOrEmpty(cardDescription) ? cardDescription : "Match 2 to WIN";
 
         if (symbolChanceHeaderText != null)
-            symbolChanceHeaderText.text = "Symbol chance";
+            symbolChanceHeaderText.text = "Symbol chance:";
 
         if (customRowTexts != null)
         {
