@@ -1,0 +1,53 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9f3057d169a9b7845b1771ebf11582ad, type: 3}
+  m_Name: QuickCashCardData
+  m_EditorClassIdentifier: 
+  cardName: Quick Cash Card
+  cardDescription: Match 3 to WIN
+  purchasePrice: 5000
+  cardBaseSprite: {fileID: 21300000, guid: 3602334f11431354fb769b974ee75284, type: 3}
+  zoneCoverSprite: {fileID: 21300000, guid: 77ef8d54d783eaa44a743a0662b1a651, type: 3}
+  bonusZoneCoverSprite: {fileID: 21300000, guid: e6947021e584e174a88198864e987605, type: 3}
+  possibleRewards:
+  - rewardName: Pennies
+    value: 2500
+    rewardSprite: {fileID: 21300000, guid: 5685cce569bc2e745ba600255961492c, type: 3}
+    rewardText: 
+    weight: 25
+  - rewardName: Coin
+    value: 5000
+    rewardSprite: {fileID: 21300000, guid: 028a8f48cdcc0f4429cb3b979dfb4839, type: 3}
+    rewardText: 5000
+    weight: 20
+  - rewardName: Dollar
+    value: 12500
+    rewardSprite: {fileID: 21300000, guid: c3e0838d235f7d04f8a8cc9a66556cad, type: 3}
+    rewardText: 
+    weight: 25
+  - rewardName: Dollars
+    value: 25000
+    rewardSprite: {fileID: 21300000, guid: cd8559c32d008254db9f566a3da59d4b, type: 3}
+    rewardText: 
+    weight: 25
+  - rewardName: Gold
+    value: 50000
+    rewardSprite: {fileID: 21300000, guid: 69f7450e6b053a844ac8143986d56173, type: 3}
+    rewardText: 
+    weight: 4
+  - rewardName: Emerald
+    value: 500000
+    rewardSprite: {fileID: 21300000, guid: 1e2ae9b24023e5741802fd4b76ac9dc3, type: 3}
+    rewardText: 
+    weight: 1
+  zoneRevealThreshold: 0.9
+  overallCardThreshold: 1

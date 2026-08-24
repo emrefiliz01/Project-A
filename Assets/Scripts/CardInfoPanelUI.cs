@@ -20,6 +20,7 @@ public class CardInfoPanelUI : MonoBehaviour
     [SerializeField] private PanelGroup mysteryCouponPanel;
     [SerializeField] private PanelGroup starCardPanel;
     [SerializeField] private PanelGroup appleTreeCardPanel;
+    [SerializeField] private PanelGroup quickCashCardPanel;
 
     private void Awake()
     {
@@ -31,13 +32,21 @@ public class CardInfoPanelUI : MonoBehaviour
     {
         if (cardObj == null) return;
 
-        // Önce tüm panelleri gizle
         HidePanel();
 
         MultiZoneScratchCard multiCard = cardObj.GetComponent<MultiZoneScratchCard>();
         RewardManager rm = cardObj.GetComponent<RewardManager>();
 
-        // 1. APPLE TREE CARD KONTROLÜ
+        if (multiCard != null && multiCard.QuickCashCardData != null)
+        {
+            if (quickCashCardPanel != null && quickCashCardPanel.panelRoot != null)
+            {
+                quickCashCardPanel.panelRoot.SetActive(true);
+                PopulateGroup(quickCashCardPanel, multiCard.QuickCashCardData.cardName, multiCard.QuickCashCardData.cardDescription, multiCard.QuickCashCardData.possibleRewards, false);
+            }
+            return;
+        }
+
         if (multiCard != null && multiCard.AppleTreeCardData != null)
         {
             if (appleTreeCardPanel != null && appleTreeCardPanel.panelRoot != null)
@@ -48,7 +57,6 @@ public class CardInfoPanelUI : MonoBehaviour
             return;
         }
 
-        // 2. STAR SCRATCH CARD KONTROLÜ
         if (multiCard != null && (multiCard.StarCardData != null || multiCard.DefaultCardData != null))
         {
             if (starCardPanel != null && starCardPanel.panelRoot != null)
@@ -67,7 +75,7 @@ public class CardInfoPanelUI : MonoBehaviour
             return;
         }
 
-        // 3. MYSTERY COUPON KONTROLÜ
+        // 4. MYSTERY COUPON KONTROLÜ
         if (rm != null && rm.CardData != null)
         {
             if (mysteryCouponPanel != null && mysteryCouponPanel.panelRoot != null)
@@ -89,6 +97,9 @@ public class CardInfoPanelUI : MonoBehaviour
 
         if (appleTreeCardPanel != null && appleTreeCardPanel.panelRoot != null)
             appleTreeCardPanel.panelRoot.SetActive(false);
+
+        if (quickCashCardPanel != null && quickCashCardPanel.panelRoot != null)
+            quickCashCardPanel.panelRoot.SetActive(false);
     }
 
     private void PopulateGroup(PanelGroup group, string cardName, string cardDescription, List<Reward> rewards, bool isAppleTree)

@@ -5,6 +5,7 @@ using System.Collections.Generic;
 public class MultiZoneScratchCard : MonoBehaviour
 {
     [Header("Card Data Assets (Optional)")]
+    [SerializeField] private QuickCashCardScriptableObject quickCashCardData;
     [SerializeField] private AppleTreeCardScriptableObject appleTreeCardData;
     [SerializeField] private StarScratchCardScriptableObject starCardData;
     [SerializeField] private ScratchCardData defaultCardData;
@@ -23,6 +24,7 @@ public class MultiZoneScratchCard : MonoBehaviour
     private int totalWinnings = 0;
 
     public ScratchZone[] Zones => zones;
+    public QuickCashCardScriptableObject QuickCashCardData => quickCashCardData;
     public AppleTreeCardScriptableObject AppleTreeCardData => appleTreeCardData;
     public StarScratchCardScriptableObject StarCardData => starCardData;
     public ScratchCardData DefaultCardData => defaultCardData;
@@ -57,7 +59,11 @@ public class MultiZoneScratchCard : MonoBehaviour
     {
         if (assignedSpotRewards.Count == 0)
         {
-            if (appleTreeCardData != null)
+            if (quickCashCardData != null)
+            {
+                InitializeFromQuickCashData(quickCashCardData);
+            }
+            else if (appleTreeCardData != null)
             {
                 InitializeFromAppleTreeData(appleTreeCardData);
             }
@@ -91,6 +97,39 @@ public class MultiZoneScratchCard : MonoBehaviour
     {
         get => overallCompletionThreshold;
         set => overallCompletionThreshold = value;
+    }
+
+    public void InitializeFromQuickCashData(QuickCashCardScriptableObject data)
+    {
+        if (data == null) return;
+        quickCashCardData = data;
+        overallCompletionThreshold = data.overallCardThreshold;
+
+        if (zones != null)
+        {
+            for (int i = 0; i < zones.Length; i++)
+            {
+                if (zones[i] != null)
+                {
+                    zones[i].SetRevealThreshold(data.zoneRevealThreshold);
+
+                    // Son dizilim elemanı (Bonus Spot) için bonusZoneCoverSprite kullan
+                    if (i == zones.Length - 1 && data.bonusZoneCoverSprite != null)
+                    {
+                        zones[i].Initialize(data.bonusZoneCoverSprite);
+                    }
+                    else if (data.zoneCoverSprite != null)
+                    {
+                        zones[i].Initialize(data.zoneCoverSprite);
+                    }
+                }
+            }
+        }
+
+        if (data.possibleRewards != null && data.possibleRewards.Count > 0)
+        {
+            InitializeSpotRewardsWithMax3Constraint(data.possibleRewards);
+        }
     }
 
     public void InitializeFromAppleTreeData(AppleTreeCardScriptableObject data)
@@ -214,25 +253,38 @@ public class MultiZoneScratchCard : MonoBehaviour
         }
     }
 
-    public void InitializeSpotRewards(List<Reward> rewardsPool)
+    public void InitializeSpotRewardsWithMax3Constraint(List<Reward> rewardsPool)
     {
         EnsureRewardRenderersExist();
         assignedSpotRewards.Clear();
         totalWinnings = 0;
 
-        if (rewardsPool == null || rewardsPool.Count == 0)
-        {
-            Debug.LogWarning("[MultiZoneScratchCard] Rewards pool is empty!");
-            return;
-        }
+        if (rewardsPool == null || rewardsPool.Count == 0) return;
+
+        Dictionary<string, int> rolledCounts = new Dictionary<string, int>();
 
         for (int i = 0; i < zones.Length; i++)
         {
-            Reward rolledReward = RollWeightedReward(rewardsPool);
+            List<Reward> validPool = new List<Reward>();
+            foreach (var r in rewardsPool)
+            {
+                if (r == null) continue;
+                string key = !string.IsNullOrEmpty(r.rewardName) ? r.rewardName : r.value.ToString();
+                if (!rolledCounts.ContainsKey(key) || rolledCounts[key] < 3)
+                {
+                    validPool.Add(r);
+                }
+            }
+
+            Reward rolledReward = RollWeightedReward(validPool.Count > 0 ? validPool : rewardsPool);
             assignedSpotRewards.Add(rolledReward);
 
             if (rolledReward != null)
             {
+                string key = !string.IsNullOrEmpty(rolledReward.rewardName) ? rolledReward.rewardName : rolledReward.value.ToString();
+                if (rolledCounts.ContainsKey(key)) rolledCounts[key]++;
+                else rolledCounts[key] = 1;
+
                 if (i < rewardRenderers.Length && rewardRenderers[i] != null)
                 {
                     rewardRenderers[i].sprite = rolledReward.rewardSprite;
@@ -244,56 +296,104 @@ public class MultiZoneScratchCard : MonoBehaviour
         CalculateTotalWinnings();
     }
 
-    public int CalculateTotalWinnings()
-{
-    totalWinnings = 0;
-    if (assignedSpotRewards == null || assignedSpotRewards.Count == 0) return 0;
-
-    // Apple Tree Card: Eşleştirme aranmaz, açılan tüm alanların değerleri (+ / -) direkt toplanır!
-    if (appleTreeCardData != null)
+    public void InitializeSpotRewards(List<Reward> rewardsPool)
     {
-        foreach (var r in assignedSpotRewards)
+        EnsureRewardRenderersExist();
+        assignedSpotRewards.Clear();
+        totalWinnings = 0;
+
+        if (rewardsPool == null || rewardsPool.Count == 0) return;
+
+        for (int i = 0; i < zones.Length; i++)
         {
-            if (r != null)
+            Reward rolledReward = RollWeightedReward(rewardsPool);
+            assignedSpotRewards.Add(rolledReward);
+
+            if (rolledReward != null && i < rewardRenderers.Length && rewardRenderers[i] != null)
             {
-                totalWinnings += r.value;
+                rewardRenderers[i].sprite = rolledReward.rewardSprite;
+                rewardRenderers[i].enabled = true;
             }
         }
+
+        CalculateTotalWinnings();
+    }
+
+    public int CalculateTotalWinnings()
+    {
+        totalWinnings = 0;
+        if (assignedSpotRewards == null || assignedSpotRewards.Count == 0) return 0;
+
+        if (quickCashCardData != null)
+        {
+            Dictionary<string, (Reward reward, int count)> quickCounts = new Dictionary<string, (Reward, int)>();
+            foreach (var r in assignedSpotRewards)
+            {
+                if (r == null) continue;
+                string key = !string.IsNullOrEmpty(r.rewardName) ? r.rewardName : r.value.ToString();
+                if (quickCounts.ContainsKey(key))
+                {
+                    var entry = quickCounts[key];
+                    quickCounts[key] = (entry.reward, entry.count + 1);
+                }
+                else
+                {
+                    quickCounts[key] = (r, 1);
+                }
+            }
+
+            foreach (var kvp in quickCounts.Values)
+            {
+                if (kvp.count == 3)
+                {
+                    totalWinnings += kvp.reward.value;
+                }
+            }
+            return totalWinnings;
+        }
+
+        // Apple Tree Card
+        if (appleTreeCardData != null)
+        {
+            foreach (var r in assignedSpotRewards)
+            {
+                if (r != null) totalWinnings += r.value;
+            }
+            return totalWinnings;
+        }
+
+        // Star Scratch Card & Diğerleri
+        Dictionary<string, (Reward reward, int count)> rewardCounts = new Dictionary<string, (Reward, int)>();
+
+        foreach (var r in assignedSpotRewards)
+        {
+            if (r == null) continue;
+            string key = !string.IsNullOrEmpty(r.rewardName) ? r.rewardName : r.value.ToString();
+            if (rewardCounts.ContainsKey(key))
+            {
+                var entry = rewardCounts[key];
+                rewardCounts[key] = (entry.reward, entry.count + 1);
+            }
+            else
+            {
+                rewardCounts[key] = (r, 1);
+            }
+        }
+
+        foreach (var kvp in rewardCounts.Values)
+        {
+            if (kvp.count == 2)
+            {
+                totalWinnings += kvp.reward.value;
+            }
+            else if (kvp.count >= 3)
+            {
+                totalWinnings += kvp.reward.value * 2;
+            }
+        }
+
         return totalWinnings;
     }
-
-    // Diğer kartlar (Star Scratch vb.): Eşleştirme (Match 2 / Match 3) mantığı
-    Dictionary<string, (Reward reward, int count)> rewardCounts = new Dictionary<string, (Reward, int)>();
-
-    foreach (var r in assignedSpotRewards)
-    {
-        if (r == null) continue;
-        string key = !string.IsNullOrEmpty(r.rewardName) ? r.rewardName : r.value.ToString();
-        if (rewardCounts.ContainsKey(key))
-        {
-            var entry = rewardCounts[key];
-            rewardCounts[key] = (entry.reward, entry.count + 1);
-        }
-        else
-        {
-            rewardCounts[key] = (r, 1);
-        }
-    }
-
-    foreach (var kvp in rewardCounts.Values)
-    {
-        if (kvp.count == 2)
-        {
-            totalWinnings += kvp.reward.value;
-        }
-        else if (kvp.count >= 3)
-        {
-            totalWinnings += kvp.reward.value * 2;
-        }
-    }
-
-    return totalWinnings;
-}
 
     private Reward RollWeightedReward(List<Reward> rewardsPool)
     {

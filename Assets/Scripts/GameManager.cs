@@ -19,11 +19,17 @@ public class GameManager : MonoBehaviour
     [SerializeField] private ScratchCardData starCardData;
     [SerializeField] private int starCardPrice = 100;
 
-    [Header("Apple Tree Card Settings")] // Yeni eklendi
+    [Header("Apple Tree Card Settings")]
     [SerializeField] private GameObject appleTreeCardTemplate;
     [SerializeField] private GameObject buyAppleTreeCardButton;
     [SerializeField] private AppleTreeCardScriptableObject appleTreeCardDataAsset;
     [SerializeField] private int appleTreeCardPrice = 500;
+
+    [Header("Quick Cash Card Settings")] // Yeni eklendi
+    [SerializeField] private GameObject quickCashCardTemplate;
+    [SerializeField] private GameObject buyQuickCashCardButton;
+    [SerializeField] private QuickCashCardScriptableObject quickCashCardDataAsset;
+    [SerializeField] private int quickCashCardPrice = 5000;
 
     [Header("Scene References")]
     [SerializeField] private GameObject mysteryCouponTemplate;
@@ -35,7 +41,8 @@ public class GameManager : MonoBehaviour
     [Header("Price Image References (Affordability)")]
     [SerializeField] private SpriteRenderer mysteryCouponPriceImage;
     [SerializeField] private SpriteRenderer starCardPriceImage;
-    [SerializeField] private SpriteRenderer appleTreeCardPriceImage; // Yeni eklendi
+    [SerializeField] private SpriteRenderer appleTreeCardPriceImage;
+    [SerializeField] private SpriteRenderer quickCashCardPriceImage;
     [SerializeField] private Color affordableColor = Color.white;
     [SerializeField] private Color unaffordableColor = Color.red;
 
@@ -66,7 +73,8 @@ public class GameManager : MonoBehaviour
 
         if (mysteryCouponTemplate != null) mysteryCouponTemplate.SetActive(false);
         if (starScratchCardTemplate != null) starScratchCardTemplate.SetActive(false);
-        if (appleTreeCardTemplate != null) appleTreeCardTemplate.SetActive(false); // Yeni eklendi
+        if (appleTreeCardTemplate != null) appleTreeCardTemplate.SetActive(false);
+        if (quickCashCardTemplate != null) quickCashCardTemplate.SetActive(false);
         if (collectRewardButton != null) collectRewardButton.SetActive(false);
 
         UpdateMoneyUI();
@@ -89,9 +97,13 @@ public class GameManager : MonoBehaviour
                 {
                     TryBuyStarCard();
                 }
-                else if (buyAppleTreeCardButton != null && hit.collider.gameObject == buyAppleTreeCardButton) // Yeni eklendi
+                else if (buyAppleTreeCardButton != null && hit.collider.gameObject == buyAppleTreeCardButton)
                 {
                     TryBuyAppleTreeCard();
+                }
+                else if (buyQuickCashCardButton != null && hit.collider.gameObject == buyQuickCashCardButton) // Yeni eklendi
+                {
+                    TryBuyQuickCashCard();
                 }
                 else if (collectRewardButton != null && collectRewardButton.activeSelf
                          && hit.collider.gameObject == collectRewardButton)
@@ -182,7 +194,7 @@ public class GameManager : MonoBehaviour
         AnimateCardToTable(newCard);
     }
 
-    public void TryBuyAppleTreeCard() // Yeni eklendi
+    public void TryBuyAppleTreeCard()
     {
         if (activeCards.Count >= maxCards || appleTreeCardTemplate == null) return;
 
@@ -207,6 +219,41 @@ public class GameManager : MonoBehaviour
             if (appleTreeCardDataAsset != null)
             {
                 multiCard.InitializeFromAppleTreeData(appleTreeCardDataAsset);
+            }
+
+            multiCard.OnCardScratchedEvent += (percentage) => OnCardScratched(cardRef, null, multiRef, null, percentage);
+            multiCard.OnAllZonesRevealedEvent += (mCard) => OnCardScratched(cardRef, null, multiRef, null, 1.0f);
+        }
+
+        activeCards.Add(newCard);
+        AnimateCardToTable(newCard);
+    }
+
+    public void TryBuyQuickCashCard() // Yeni eklendi
+    {
+        if (activeCards.Count >= maxCards || quickCashCardTemplate == null) return;
+
+        int price = quickCashCardDataAsset != null ? quickCashCardDataAsset.purchasePrice : quickCashCardPrice;
+        if (playerMoney < price) return;
+
+        playerMoney -= price;
+        UpdateMoneyUI();
+
+        GameObject newCard = Instantiate(quickCashCardTemplate);
+        newCard.SetActive(true);
+        newCard.transform.position = quickCashCardTemplate.transform.position;
+        newCard.transform.rotation = quickCashCardTemplate.transform.rotation;
+        newCard.transform.localScale = quickCashCardTemplate.transform.localScale;
+
+        MultiZoneScratchCard multiCard = newCard.GetComponent<MultiZoneScratchCard>();
+        if (multiCard != null)
+        {
+            GameObject cardRef = newCard;
+            MultiZoneScratchCard multiRef = multiCard;
+
+            if (quickCashCardDataAsset != null)
+            {
+                multiCard.InitializeFromQuickCashData(quickCashCardDataAsset);
             }
 
             multiCard.OnCardScratchedEvent += (percentage) => OnCardScratched(cardRef, null, multiRef, null, percentage);
@@ -325,6 +372,7 @@ public class GameManager : MonoBehaviour
         int mysteryPrice = currentCardData != null ? currentCardData.purchasePrice : 10;
         int starPrice = starCardDataAsset != null ? starCardDataAsset.purchasePrice : (starCardData != null ? starCardData.purchasePrice : starCardPrice);
         int appleTreePrice = appleTreeCardDataAsset != null ? appleTreeCardDataAsset.purchasePrice : appleTreeCardPrice;
+        int quickCashPrice = quickCashCardDataAsset != null ? quickCashCardDataAsset.purchasePrice : quickCashCardPrice;
 
         if (mysteryCouponPriceImage == null && buyButton != null) mysteryCouponPriceImage = GetPriceImage(buyButton);
         if (mysteryCouponPriceImage != null) mysteryCouponPriceImage.color = (playerMoney >= mysteryPrice) ? affordableColor : unaffordableColor;
@@ -334,6 +382,9 @@ public class GameManager : MonoBehaviour
 
         if (appleTreeCardPriceImage == null && buyAppleTreeCardButton != null) appleTreeCardPriceImage = GetPriceImage(buyAppleTreeCardButton);
         if (appleTreeCardPriceImage != null) appleTreeCardPriceImage.color = (playerMoney >= appleTreePrice) ? affordableColor : unaffordableColor;
+
+        if (quickCashCardPriceImage == null && buyQuickCashCardButton != null) quickCashCardPriceImage = GetPriceImage(buyQuickCashCardButton);
+        if (quickCashCardPriceImage != null) quickCashCardPriceImage.color = (playerMoney >= quickCashPrice) ? affordableColor : unaffordableColor;
     }
 
     private SpriteRenderer GetPriceImage(GameObject buttonObj)
