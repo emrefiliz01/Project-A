@@ -6,118 +6,109 @@ public class CardInfoPanelUI : MonoBehaviour
 {
     public static CardInfoPanelUI Instance { get; private set; }
 
-    [Header("Main Text References")]
-    [SerializeField] private TMP_Text cardNameText;
-    [SerializeField] private TMP_Text cardDescriptionText;
-    [SerializeField] private TMP_Text symbolChanceHeaderText;
+    [System.Serializable]
+    public class PanelGroup
+    {
+        public GameObject panelRoot;
+        public TMP_Text cardNameText;
+        public TMP_Text cardDescriptionText;
+        public TMP_Text symbolChanceHeaderText;
+        public TMP_Text[] customRowTexts;
+    }
 
-    [Header("Per-Row Texts (next to DollarImage, CoinsImage, CoinBagImage)")]
-    [Tooltip("Assign TextMeshPro objects in order (e.g. DollarInfo, CoinsInfo, CoinBagInfo).")]
-    [SerializeField] private TMP_Text[] customRowTexts;
-
-    [Header("Named Row Text Fields (Optional)")]
-    [SerializeField] private TMP_Text dollarChanceText;
-    [SerializeField] private TMP_Text coinsChanceText;
-    [SerializeField] private TMP_Text coinBagChanceText;
+    [Header("Panels Configuration")]
+    [SerializeField] private PanelGroup mysteryCouponPanel;
+    [SerializeField] private PanelGroup starCardPanel;
+    [SerializeField] private PanelGroup appleTreeCardPanel;
 
     private void Awake()
     {
         Instance = this;
-        FindReferencesIfMissing();
-        gameObject.SetActive(false);
+        HidePanel();
     }
 
     public void ShowPanelForCard(GameObject cardObj)
     {
-        gameObject.SetActive(true);
-        UpdateFromCard(cardObj);
+        if (cardObj == null) return;
+
+        // Önce tüm panelleri gizle
+        HidePanel();
+
+        MultiZoneScratchCard multiCard = cardObj.GetComponent<MultiZoneScratchCard>();
+        RewardManager rm = cardObj.GetComponent<RewardManager>();
+
+        // 1. APPLE TREE CARD KONTROLÜ
+        if (multiCard != null && multiCard.AppleTreeCardData != null)
+        {
+            if (appleTreeCardPanel != null && appleTreeCardPanel.panelRoot != null)
+            {
+                appleTreeCardPanel.panelRoot.SetActive(true);
+                PopulateGroup(appleTreeCardPanel, multiCard.AppleTreeCardData.cardName, multiCard.AppleTreeCardData.cardDescription, multiCard.AppleTreeCardData.possibleRewards, true);
+            }
+            return;
+        }
+
+        // 2. STAR SCRATCH CARD KONTROLÜ
+        if (multiCard != null && (multiCard.StarCardData != null || multiCard.DefaultCardData != null))
+        {
+            if (starCardPanel != null && starCardPanel.panelRoot != null)
+            {
+                starCardPanel.panelRoot.SetActive(true);
+                var starData = multiCard.StarCardData;
+                if (starData != null)
+                {
+                    PopulateGroup(starCardPanel, starData.cardName, starData.cardDescription, starData.possibleRewards, false);
+                }
+                else if (multiCard.DefaultCardData != null)
+                {
+                    PopulateGroup(starCardPanel, multiCard.DefaultCardData.cardName, multiCard.DefaultCardData.cardDescription, multiCard.DefaultCardData.rewardsList, false);
+                }
+            }
+            return;
+        }
+
+        // 3. MYSTERY COUPON KONTROLÜ
+        if (rm != null && rm.CardData != null)
+        {
+            if (mysteryCouponPanel != null && mysteryCouponPanel.panelRoot != null)
+            {
+                mysteryCouponPanel.panelRoot.SetActive(true);
+                PopulateGroup(mysteryCouponPanel, rm.CardData.cardName, rm.CardData.cardDescription, rm.CardData.rewardsList, false);
+            }
+            return;
+        }
     }
 
     public void HidePanel()
     {
-        gameObject.SetActive(false);
+        if (mysteryCouponPanel != null && mysteryCouponPanel.panelRoot != null)
+            mysteryCouponPanel.panelRoot.SetActive(false);
+
+        if (starCardPanel != null && starCardPanel.panelRoot != null)
+            starCardPanel.panelRoot.SetActive(false);
+
+        if (appleTreeCardPanel != null && appleTreeCardPanel.panelRoot != null)
+            appleTreeCardPanel.panelRoot.SetActive(false);
     }
 
-    public void Initialize(StarScratchCardScriptableObject data)
+    private void PopulateGroup(PanelGroup group, string cardName, string cardDescription, List<Reward> rewards, bool isAppleTree)
     {
-        if (data == null) return;
-        Populate(data.cardName, data.cardDescription, data.possibleRewards);
-    }
+        if (group == null) return;
 
-    public void Initialize(ScratchCardData data)
-    {
-        if (data == null) return;
-        Populate(data.cardName, data.cardDescription, data.rewardsList);
-    }
+        if (group.cardNameText != null)
+            group.cardNameText.text = !string.IsNullOrEmpty(cardName) ? cardName : "Scratch Card";
 
-    public void UpdateFromCard(GameObject cardObj)
-    {
-        if (cardObj == null) return;
+        if (group.cardDescriptionText != null)
+            group.cardDescriptionText.text = !string.IsNullOrEmpty(cardDescription) ? cardDescription : "";
 
-        MultiZoneScratchCard multiCard = cardObj.GetComponent<MultiZoneScratchCard>();
-        if (multiCard != null)
+        if (group.symbolChanceHeaderText != null)
+            group.symbolChanceHeaderText.text = "Symbol chance:";
+
+        if (group.customRowTexts != null)
         {
-            if (multiCard.StarCardData != null)
-            {
-                Initialize(multiCard.StarCardData);
-                return;
-            }
-            else if (multiCard.DefaultCardData != null)
-            {
-                Initialize(multiCard.DefaultCardData);
-                return;
-            }
-        }
-
-        RewardManager rm = cardObj.GetComponent<RewardManager>();
-        if (rm != null && rm.CardData != null)
-        {
-            Initialize(rm.CardData);
-        }
-    }
-
-    private void FindReferencesIfMissing()
-    {
-        if (cardNameText == null)
-        {
-            Transform t = transform.Find("CardName");
-            if (t != null) cardNameText = t.GetComponent<TMP_Text>();
-        }
-
-        if (cardDescriptionText == null)
-        {
-            Transform t = transform.Find("CardDescription");
-            if (t != null) cardDescriptionText = t.GetComponent<TMP_Text>();
-        }
-
-        if (symbolChanceHeaderText == null)
-        {
-            Transform t = transform.Find("SymbolChance");
-            if (t != null) symbolChanceHeaderText = t.GetComponent<TMP_Text>();
-        }
-    }
-
-    private void Populate(string cardName, string cardDescription, List<Reward> rewards)
-    {
-        FindReferencesIfMissing();
-
-        if (cardNameText != null)
-            cardNameText.text = !string.IsNullOrEmpty(cardName) ? cardName : "Star Scratch Card";
-
-        if (cardDescriptionText != null)
-            cardDescriptionText.text = !string.IsNullOrEmpty(cardDescription) ? cardDescription : "Match 2 to WIN";
-
-        if (symbolChanceHeaderText != null)
-            symbolChanceHeaderText.text = "Symbol chance:";
-
-        if (customRowTexts != null)
-        {
-            foreach (var t in customRowTexts)
+            foreach (var t in group.customRowTexts)
                 if (t != null) t.text = "";
         }
-        if (dollarChanceText != null) dollarChanceText.text = "";
-        if (coinsChanceText != null) coinsChanceText.text = "";
-        if (coinBagChanceText != null) coinBagChanceText.text = "";
 
         if (rewards == null || rewards.Count == 0) return;
 
@@ -132,22 +123,13 @@ public class CardInfoPanelUI : MonoBehaviour
 
             int weight = Mathf.Max(1, r.weight);
             int percent = totalWeight > 0 ? Mathf.RoundToInt((float)weight / totalWeight * 100f) : 0;
-            string rowString = $"{percent}%\t\t${r.value}";
 
-            if (customRowTexts != null && i < customRowTexts.Length && customRowTexts[i] != null)
-            {
-                customRowTexts[i].text = rowString;
-            }
+            string valueDisplay = isAppleTree ? (r.value >= 0 ? $"${r.value}" : $"-${Mathf.Abs(r.value)}") : $"${r.value}";
+            string rowString = $"{percent}%\t\t{valueDisplay}";
 
-            if (!string.IsNullOrEmpty(r.rewardName))
+            if (group.customRowTexts != null && i < group.customRowTexts.Length && group.customRowTexts[i] != null)
             {
-                string lower = r.rewardName.ToLower();
-                if (lower.Contains("dollar") && dollarChanceText != null)
-                    dollarChanceText.text = rowString;
-                else if (lower.Contains("coinbag") && coinBagChanceText != null)
-                    coinBagChanceText.text = rowString;
-                else if (lower.Contains("coin") && coinsChanceText != null)
-                    coinsChanceText.text = rowString;
+                group.customRowTexts[i].text = rowString;
             }
         }
     }

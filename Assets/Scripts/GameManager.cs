@@ -19,6 +19,12 @@ public class GameManager : MonoBehaviour
     [SerializeField] private ScratchCardData starCardData;
     [SerializeField] private int starCardPrice = 100;
 
+    [Header("Apple Tree Card Settings")] // Yeni eklendi
+    [SerializeField] private GameObject appleTreeCardTemplate;
+    [SerializeField] private GameObject buyAppleTreeCardButton;
+    [SerializeField] private AppleTreeCardScriptableObject appleTreeCardDataAsset;
+    [SerializeField] private int appleTreeCardPrice = 500;
+
     [Header("Scene References")]
     [SerializeField] private GameObject mysteryCouponTemplate;
     [SerializeField] private Transform cardDestination;
@@ -29,6 +35,7 @@ public class GameManager : MonoBehaviour
     [Header("Price Image References (Affordability)")]
     [SerializeField] private SpriteRenderer mysteryCouponPriceImage;
     [SerializeField] private SpriteRenderer starCardPriceImage;
+    [SerializeField] private SpriteRenderer appleTreeCardPriceImage; // Yeni eklendi
     [SerializeField] private Color affordableColor = Color.white;
     [SerializeField] private Color unaffordableColor = Color.red;
 
@@ -57,20 +64,10 @@ public class GameManager : MonoBehaviour
     {
         playerMoney = startingMoney;
 
-        if (mysteryCouponTemplate != null)
-        {
-            mysteryCouponTemplate.SetActive(false);
-        }
-
-        if (starScratchCardTemplate != null)
-        {
-            starScratchCardTemplate.SetActive(false);
-        }
-
-        if (collectRewardButton != null)
-        {
-            collectRewardButton.SetActive(false);
-        }
+        if (mysteryCouponTemplate != null) mysteryCouponTemplate.SetActive(false);
+        if (starScratchCardTemplate != null) starScratchCardTemplate.SetActive(false);
+        if (appleTreeCardTemplate != null) appleTreeCardTemplate.SetActive(false); // Yeni eklendi
+        if (collectRewardButton != null) collectRewardButton.SetActive(false);
 
         UpdateMoneyUI();
     }
@@ -92,6 +89,10 @@ public class GameManager : MonoBehaviour
                 {
                     TryBuyStarCard();
                 }
+                else if (buyAppleTreeCardButton != null && hit.collider.gameObject == buyAppleTreeCardButton) // Yeni eklendi
+                {
+                    TryBuyAppleTreeCard();
+                }
                 else if (collectRewardButton != null && collectRewardButton.activeSelf
                          && hit.collider.gameObject == collectRewardButton)
                 {
@@ -103,23 +104,12 @@ public class GameManager : MonoBehaviour
 
     public void TryBuyCard()
     {
-        if (activeCards.Count >= maxCards)
-        {
-            Debug.Log("Card limit reached! Scratch some cards first. (" + activeCards.Count + "/" + maxCards + ")");
-            return;
-        }
-
+        if (activeCards.Count >= maxCards) return;
         int price = currentCardData != null ? currentCardData.purchasePrice : 10;
-
-        if (playerMoney < price)
-        {
-            Debug.Log("Not enough money! You need $" + price + " but only have $" + playerMoney);
-            return;
-        }
+        if (playerMoney < price) return;
 
         playerMoney -= price;
         UpdateMoneyUI();
-        Debug.Log("Bought card for $" + price + ". Remaining: $" + playerMoney + " | Cards: " + (activeCards.Count + 1) + "/" + maxCards);
 
         GameObject newCard = Instantiate(mysteryCouponTemplate);
         newCard.SetActive(true);
@@ -128,10 +118,7 @@ public class GameManager : MonoBehaviour
         newCard.transform.localScale = mysteryCouponTemplate.transform.localScale;
 
         RewardManager rm = newCard.GetComponent<RewardManager>();
-        if (rm != null && currentCardData != null)
-        {
-            rm.Initialize(currentCardData);
-        }
+        if (rm != null && currentCardData != null) rm.Initialize(currentCardData);
 
         MultiZoneScratchCard multiCard = newCard.GetComponent<MultiZoneScratchCard>();
         if (multiCard != null)
@@ -141,9 +128,7 @@ public class GameManager : MonoBehaviour
             MultiZoneScratchCard multiRef = multiCard;
 
             if (currentCardData != null && currentCardData.rewardsList != null)
-            {
                 multiCard.InitializeSpotRewards(currentCardData.rewardsList);
-            }
 
             multiCard.OnCardScratchedEvent += (percentage) => OnCardScratched(cardRef, null, multiRef, rmRef, percentage);
             multiCard.OnAllZonesRevealedEvent += (mCard) => OnCardScratched(cardRef, null, multiRef, rmRef, 1.0f);
@@ -153,59 +138,26 @@ public class GameManager : MonoBehaviour
             ScratchCard sc = newCard.GetComponentInChildren<ScratchCard>();
             if (sc != null)
             {
-                if (currentCardData != null)
-                {
-                    sc.scratchThreshold = currentCardData.scratchThreshold;
-                }
-
+                if (currentCardData != null) sc.scratchThreshold = currentCardData.scratchThreshold;
                 GameObject cardRef = newCard;
                 ScratchCard scRef = sc;
                 RewardManager rmRef = rm;
-
                 sc.OnScratched += (percentage) => OnCardScratched(cardRef, scRef, null, rmRef, percentage);
             }
         }
 
         activeCards.Add(newCard);
-
-        Vector3 destination = GetRandomDestinationPosition();
-        newCard.transform.DOMove(destination, cardMoveDuration)
-            .SetEase(cardMoveEase)
-            .OnComplete(() =>
-            {
-                CardZoomController czc = newCard.GetComponent<CardZoomController>();
-                if (czc != null)
-                {
-                    czc.SetHomePosition(destination, newCard.transform.rotation, newCard.transform.localScale);
-                }
-            });
+        AnimateCardToTable(newCard);
     }
 
     public void TryBuyStarCard()
     {
-        if (activeCards.Count >= maxCards)
-        {
-            Debug.Log("Card limit reached! Scratch some cards first. (" + activeCards.Count + "/" + maxCards + ")");
-            return;
-        }
-
-        if (starScratchCardTemplate == null)
-        {
-            Debug.LogWarning("GameManager: starScratchCardTemplate is not assigned!");
-            return;
-        }
-
+        if (activeCards.Count >= maxCards || starScratchCardTemplate == null) return;
         int price = starCardDataAsset != null ? starCardDataAsset.purchasePrice : (starCardData != null ? starCardData.purchasePrice : starCardPrice);
-
-        if (playerMoney < price)
-        {
-            Debug.Log("Not enough money! You need $" + price + " but only have $" + playerMoney);
-            return;
-        }
+        if (playerMoney < price) return;
 
         playerMoney -= price;
         UpdateMoneyUI();
-        Debug.Log("Bought Star Scratch Card for $" + price + ". Remaining balance: $" + playerMoney + " | Cards: " + (activeCards.Count + 1) + "/" + maxCards);
 
         GameObject newCard = Instantiate(starScratchCardTemplate);
         newCard.SetActive(true);
@@ -219,13 +171,42 @@ public class GameManager : MonoBehaviour
             GameObject cardRef = newCard;
             MultiZoneScratchCard multiRef = multiCard;
 
-            if (starCardDataAsset != null)
+            if (starCardDataAsset != null) multiCard.InitializeFromStarData(starCardDataAsset);
+            else if (starCardData != null && starCardData.rewardsList != null) multiCard.InitializeSpotRewards(starCardData.rewardsList);
+
+            multiCard.OnCardScratchedEvent += (percentage) => OnCardScratched(cardRef, null, multiRef, null, percentage);
+            multiCard.OnAllZonesRevealedEvent += (mCard) => OnCardScratched(cardRef, null, multiRef, null, 1.0f);
+        }
+
+        activeCards.Add(newCard);
+        AnimateCardToTable(newCard);
+    }
+
+    public void TryBuyAppleTreeCard() // Yeni eklendi
+    {
+        if (activeCards.Count >= maxCards || appleTreeCardTemplate == null) return;
+
+        int price = appleTreeCardDataAsset != null ? appleTreeCardDataAsset.purchasePrice : appleTreeCardPrice;
+        if (playerMoney < price) return;
+
+        playerMoney -= price;
+        UpdateMoneyUI();
+
+        GameObject newCard = Instantiate(appleTreeCardTemplate);
+        newCard.SetActive(true);
+        newCard.transform.position = appleTreeCardTemplate.transform.position;
+        newCard.transform.rotation = appleTreeCardTemplate.transform.rotation;
+        newCard.transform.localScale = appleTreeCardTemplate.transform.localScale;
+
+        MultiZoneScratchCard multiCard = newCard.GetComponent<MultiZoneScratchCard>();
+        if (multiCard != null)
+        {
+            GameObject cardRef = newCard;
+            MultiZoneScratchCard multiRef = multiCard;
+
+            if (appleTreeCardDataAsset != null)
             {
-                multiCard.InitializeFromStarData(starCardDataAsset);
-            }
-            else if (starCardData != null && starCardData.rewardsList != null)
-            {
-                multiCard.InitializeSpotRewards(starCardData.rewardsList);
+                multiCard.InitializeFromAppleTreeData(appleTreeCardDataAsset);
             }
 
             multiCard.OnCardScratchedEvent += (percentage) => OnCardScratched(cardRef, null, multiRef, null, percentage);
@@ -233,7 +214,11 @@ public class GameManager : MonoBehaviour
         }
 
         activeCards.Add(newCard);
+        AnimateCardToTable(newCard);
+    }
 
+    private void AnimateCardToTable(GameObject newCard)
+    {
         Vector3 destination = GetRandomDestinationPosition();
         newCard.transform.DOMove(destination, cardMoveDuration)
             .SetEase(cardMoveEase)
@@ -249,29 +234,20 @@ public class GameManager : MonoBehaviour
 
     private Vector3 GetRandomDestinationPosition()
     {
-        if (cardDestination == null)
-            return Vector3.zero;
+        if (cardDestination == null) return Vector3.zero;
 
         Collider2D col = cardDestination.GetComponent<Collider2D>();
         if (col != null)
         {
             Bounds b = col.bounds;
-            return new Vector3(
-                Random.Range(b.min.x, b.max.x),
-                Random.Range(b.min.y, b.max.y),
-                0f
-            );
+            return new Vector3(Random.Range(b.min.x, b.max.x), Random.Range(b.min.y, b.max.y), 0f);
         }
 
         SpriteRenderer sr = cardDestination.GetComponent<SpriteRenderer>();
         if (sr != null)
         {
             Bounds b = sr.bounds;
-            return new Vector3(
-                Random.Range(b.min.x, b.max.x),
-                Random.Range(b.min.y, b.max.y),
-                0f
-            );
+            return new Vector3(Random.Range(b.min.x, b.max.x), Random.Range(b.min.y, b.max.y), 0f);
         }
 
         return cardDestination.position;
@@ -282,18 +258,9 @@ public class GameManager : MonoBehaviour
         if (rewardRevealedCards.Contains(card)) return;
 
         float targetThreshold = scratchThreshold;
-        if (multiCard != null)
-        {
-            targetThreshold = multiCard.OverallCompletionThreshold;
-        }
-        else if (sc != null)
-        {
-            targetThreshold = sc.scratchThreshold;
-        }
-        else if (currentCardData != null)
-        {
-            targetThreshold = currentCardData.scratchThreshold;
-        }
+        if (multiCard != null) targetThreshold = multiCard.OverallCompletionThreshold;
+        else if (sc != null) targetThreshold = sc.scratchThreshold;
+        else if (currentCardData != null) targetThreshold = currentCardData.scratchThreshold;
 
         if (scratchPercentage >= targetThreshold || (multiCard != null && multiCard.IsCompleted))
         {
@@ -306,26 +273,11 @@ public class GameManager : MonoBehaviour
             rewardReady = true;
 
             int rewardValue = 0;
-            if (multiCard != null)
-            {
-                rewardValue = multiCard.TotalWinnings;
-            }
-            else if (rm != null)
-            {
-                rewardValue = rm.ActiveRewardValue;
-            }
+            if (multiCard != null) rewardValue = multiCard.TotalWinnings;
+            else if (rm != null) rewardValue = rm.ActiveRewardValue;
 
-            Debug.Log("Card " + Mathf.FloorToInt(scratchPercentage * 100) + "% scratched! Total Reward: $" + rewardValue);
-
-            if (collectRewardButton != null)
-            {
-                collectRewardButton.SetActive(true);
-            }
-
-            if (rewardButtonText != null)
-            {
-                rewardButtonText.text = "+$" + rewardValue;
-            }
+            if (collectRewardButton != null) collectRewardButton.SetActive(true);
+            if (rewardButtonText != null) rewardButtonText.text = "+$" + rewardValue;
         }
     }
 
@@ -334,10 +286,7 @@ public class GameManager : MonoBehaviour
         if (!rewardReady || currentCard == null) return;
 
         int rewardValue = 0;
-        if (currentMultiCard != null)
-        {
-            rewardValue = currentMultiCard.TotalWinnings;
-        }
+        if (currentMultiCard != null) rewardValue = currentMultiCard.TotalWinnings;
         else if (currentRewardManager != null)
         {
             rewardValue = currentRewardManager.ActiveRewardValue;
@@ -346,21 +295,12 @@ public class GameManager : MonoBehaviour
 
         playerMoney += rewardValue;
         UpdateMoneyUI();
-        Debug.Log("Collected $" + rewardValue + "! New balance: $" + playerMoney + " | Cards: " + (activeCards.Count - 1) + "/" + maxCards);
 
         activeCards.Remove(currentCard);
         rewardRevealedCards.Remove(currentCard);
 
-        if (currentScratchCard != null)
-        {
-            currentScratchCard.OnScratched = null;
-        }
-
-        // Hide the info panel immediately
-        if (CardInfoPanelUI.Instance != null)
-        {
-            CardInfoPanelUI.Instance.HidePanel();
-        }
+        if (currentScratchCard != null) currentScratchCard.OnScratched = null;
+        if (CardInfoPanelUI.Instance != null) CardInfoPanelUI.Instance.HidePanel();
 
         Destroy(currentCard);
         currentCard = null;
@@ -369,24 +309,14 @@ public class GameManager : MonoBehaviour
         currentRewardManager = null;
         rewardReady = false;
 
-        if (collectRewardButton != null)
-        {
-            collectRewardButton.SetActive(false);
-        }
+        if (collectRewardButton != null) collectRewardButton.SetActive(false);
     }
 
-    private void Start()
-    {
-        UpdateMoneyUI();
-    }
+    private void Start() => UpdateMoneyUI();
 
     private void UpdateMoneyUI()
     {
-        if (moneyText != null)
-        {
-            moneyText.text = "$" + playerMoney;
-        }
-
+        if (moneyText != null) moneyText.text = "$" + playerMoney;
         UpdateAffordabilityUI();
     }
 
@@ -394,52 +324,32 @@ public class GameManager : MonoBehaviour
     {
         int mysteryPrice = currentCardData != null ? currentCardData.purchasePrice : 10;
         int starPrice = starCardDataAsset != null ? starCardDataAsset.purchasePrice : (starCardData != null ? starCardData.purchasePrice : starCardPrice);
+        int appleTreePrice = appleTreeCardDataAsset != null ? appleTreeCardDataAsset.purchasePrice : appleTreeCardPrice;
 
-        // Mystery Coupon Price Image
-        if (mysteryCouponPriceImage == null && buyButton != null)
-        {
-            mysteryCouponPriceImage = GetPriceImage(buyButton);
-        }
+        if (mysteryCouponPriceImage == null && buyButton != null) mysteryCouponPriceImage = GetPriceImage(buyButton);
+        if (mysteryCouponPriceImage != null) mysteryCouponPriceImage.color = (playerMoney >= mysteryPrice) ? affordableColor : unaffordableColor;
 
-        if (mysteryCouponPriceImage != null)
-        {
-            mysteryCouponPriceImage.color = (playerMoney >= mysteryPrice) ? affordableColor : unaffordableColor;
-        }
+        if (starCardPriceImage == null && buyStarCardButton != null) starCardPriceImage = GetPriceImage(buyStarCardButton);
+        if (starCardPriceImage != null) starCardPriceImage.color = (playerMoney >= starPrice) ? affordableColor : unaffordableColor;
 
-        // Star Scratch Card Price Image
-        if (starCardPriceImage == null && buyStarCardButton != null)
-        {
-            starCardPriceImage = GetPriceImage(buyStarCardButton);
-        }
-
-        if (starCardPriceImage != null)
-        {
-            starCardPriceImage.color = (playerMoney >= starPrice) ? affordableColor : unaffordableColor;
-        }
+        if (appleTreeCardPriceImage == null && buyAppleTreeCardButton != null) appleTreeCardPriceImage = GetPriceImage(buyAppleTreeCardButton);
+        if (appleTreeCardPriceImage != null) appleTreeCardPriceImage.color = (playerMoney >= appleTreePrice) ? affordableColor : unaffordableColor;
     }
 
     private SpriteRenderer GetPriceImage(GameObject buttonObj)
     {
         if (buttonObj == null) return null;
-
         Transform priceT = buttonObj.transform.Find("PriceImage");
         if (priceT == null) priceT = buttonObj.transform.Find("TextImage");
 
-        if (priceT != null)
-        {
-            return priceT.GetComponent<SpriteRenderer>();
-        }
+        if (priceT != null) return priceT.GetComponent<SpriteRenderer>();
 
         SpriteRenderer buttonSR = buttonObj.GetComponent<SpriteRenderer>();
         SpriteRenderer[] childSRs = buttonObj.GetComponentsInChildren<SpriteRenderer>(true);
         foreach (var sr in childSRs)
         {
-            if (sr != buttonSR)
-            {
-                return sr;
-            }
+            if (sr != buttonSR) return sr;
         }
-
         return null;
     }
 }
