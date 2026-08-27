@@ -28,7 +28,7 @@ public class GameManager : MonoBehaviour
     /// <summary>Adds <paramref name="amount"/> to the player's balance and fires OnMoneyChanged.</summary>
     public void AddMoney(int amount)
     {
-        playerMoney += amount;
+        playerMoney = Mathf.Max(0, playerMoney + amount);
         UpdateMoneyUI();
     }
 
@@ -75,6 +75,9 @@ public class GameManager : MonoBehaviour
 
     [Header("Reward Button Text")]
     [SerializeField] private TextMeshPro rewardButtonText;
+
+    [Header("Trash Bin Settings")]
+    [SerializeField] private GameObject trashBinButton;
 
     [Header("Scratch Threshold")]
     [SerializeField] private float scratchThreshold = 0.90f;
@@ -130,7 +133,7 @@ public class GameManager : MonoBehaviour
                 {
                     TryBuyAppleTreeCard();
                 }
-                else if (buyQuickCashCardButton != null && hit.collider.gameObject == buyQuickCashCardButton) // Yeni eklendi
+                else if (buyQuickCashCardButton != null && hit.collider.gameObject == buyQuickCashCardButton)
                 {
                     TryBuyQuickCashCard();
                 }
@@ -138,6 +141,10 @@ public class GameManager : MonoBehaviour
                          && hit.collider.gameObject == collectRewardButton)
                 {
                     CollectReward();
+                }
+                else if (trashBinButton != null && hit.collider.gameObject == trashBinButton)
+                {
+                    DiscardCurrentCard();
                 }
             }
         }
@@ -171,6 +178,7 @@ public class GameManager : MonoBehaviour
             if (currentCardData != null && currentCardData.rewardsList != null)
                 multiCard.InitializeSpotRewards(currentCardData.rewardsList);
 
+            multiCard.OnZoneRevealedEvent += (idx, zone, r) => OnZoneProgressRevealed(cardRef, multiRef);
             multiCard.OnCardScratchedEvent += (percentage) => OnCardScratched(cardRef, null, multiRef, rmRef, percentage);
             multiCard.OnAllZonesRevealedEvent += (mCard) => OnCardScratched(cardRef, null, multiRef, rmRef, 1.0f);
         }
@@ -215,6 +223,7 @@ public class GameManager : MonoBehaviour
             if (starCardDataAsset != null) multiCard.InitializeFromStarData(starCardDataAsset);
             else if (starCardData != null && starCardData.rewardsList != null) multiCard.InitializeSpotRewards(starCardData.rewardsList);
 
+            multiCard.OnZoneRevealedEvent += (idx, zone, r) => OnZoneProgressRevealed(cardRef, multiRef);
             multiCard.OnCardScratchedEvent += (percentage) => OnCardScratched(cardRef, null, multiRef, null, percentage);
             multiCard.OnAllZonesRevealedEvent += (mCard) => OnCardScratched(cardRef, null, multiRef, null, 1.0f);
         }
@@ -250,6 +259,7 @@ public class GameManager : MonoBehaviour
                 multiCard.InitializeFromAppleTreeData(appleTreeCardDataAsset);
             }
 
+            multiCard.OnZoneRevealedEvent += (idx, zone, r) => OnZoneProgressRevealed(cardRef, multiRef);
             multiCard.OnCardScratchedEvent += (percentage) => OnCardScratched(cardRef, null, multiRef, null, percentage);
             multiCard.OnAllZonesRevealedEvent += (mCard) => OnCardScratched(cardRef, null, multiRef, null, 1.0f);
         }
@@ -258,7 +268,7 @@ public class GameManager : MonoBehaviour
         AnimateCardToTable(newCard);
     }
 
-    public void TryBuyQuickCashCard() // Yeni eklendi
+    public void TryBuyQuickCashCard()
     {
         if (activeCards.Count >= maxCards || quickCashCardTemplate == null) return;
 
@@ -285,6 +295,7 @@ public class GameManager : MonoBehaviour
                 multiCard.InitializeFromQuickCashData(quickCashCardDataAsset);
             }
 
+            multiCard.OnZoneRevealedEvent += (idx, zone, r) => OnZoneProgressRevealed(cardRef, multiRef);
             multiCard.OnCardScratchedEvent += (percentage) => OnCardScratched(cardRef, null, multiRef, null, percentage);
             multiCard.OnAllZonesRevealedEvent += (mCard) => OnCardScratched(cardRef, null, multiRef, null, 1.0f);
         }
@@ -329,55 +340,113 @@ public class GameManager : MonoBehaviour
         return cardDestination.position;
     }
 
+    private void OnZoneProgressRevealed(GameObject card, MultiZoneScratchCard multiCard)
+    {
+        if (card == null || multiCard == null) return;
+
+        currentCard = card;
+        currentMultiCard = multiCard;
+        currentScratchCard = null;
+        currentRewardManager = null;
+
+        int rewardValue = multiCard.CalculateRevealedWinnings();
+        UpdateCollectRewardUI(rewardValue, forceShow: multiCard.IsCompleted);
+    }
+
     private void OnCardScratched(GameObject card, ScratchCard sc, MultiZoneScratchCard multiCard, RewardManager rm, float scratchPercentage)
     {
-        if (rewardRevealedCards.Contains(card)) return;
+        currentCard = card;
+        currentScratchCard = sc;
+        currentMultiCard = multiCard;
+        currentRewardManager = rm;
 
         float targetThreshold = scratchThreshold;
         if (multiCard != null) targetThreshold = multiCard.OverallCompletionThreshold;
         else if (sc != null) targetThreshold = sc.scratchThreshold;
         else if (currentCardData != null) targetThreshold = currentCardData.scratchThreshold;
 
-        if (scratchPercentage >= targetThreshold || (multiCard != null && multiCard.IsCompleted))
+        bool isFullyFinished = scratchPercentage >= targetThreshold || (multiCard != null && multiCard.IsCompleted);
+
+        if ((multiCard != null && multiCard.HasAnyZoneRevealed) || (sc != null && scratchPercentage >= targetThreshold) || (rm != null && scratchPercentage >= targetThreshold) || isFullyFinished)
         {
-            rewardRevealedCards.Add(card);
-
-            currentCard = card;
-            currentScratchCard = sc;
-            currentMultiCard = multiCard;
-            currentRewardManager = rm;
-            rewardReady = true;
-
             int rewardValue = 0;
-            if (multiCard != null) rewardValue = multiCard.TotalWinnings;
+            if (multiCard != null) rewardValue = multiCard.CalculateRevealedWinnings();
             else if (rm != null) rewardValue = rm.ActiveRewardValue;
 
-            if (collectRewardButton != null) collectRewardButton.SetActive(true);
-            if (rewardButtonText != null) rewardButtonText.text = "+$" + rewardValue;
+            UpdateCollectRewardUI(rewardValue, forceShow: isFullyFinished);
+        }
+
+        if (isFullyFinished)
+        {
+            rewardRevealedCards.Add(card);
+        }
+    }
+
+    private void UpdateCollectRewardUI(int rewardValue, bool forceShow = false)
+    {
+        // Show button if a reward/penalty occurred (rewardValue != 0), or if the button was
+        // already opened on this active card, or if the entire card has been completely scratched.
+        bool wasAlreadyActive = collectRewardButton != null && collectRewardButton.activeSelf;
+        bool shouldShow = (rewardValue != 0) || wasAlreadyActive || forceShow;
+
+        rewardReady = shouldShow;
+
+        if (collectRewardButton != null)
+        {
+            collectRewardButton.SetActive(shouldShow);
+        }
+
+        if (shouldShow && rewardButtonText != null)
+        {
+            if (rewardValue >= 0)
+            {
+                rewardButtonText.text = "+$" + rewardValue;
+            }
+            else
+            {
+                rewardButtonText.text = "-$" + Mathf.Abs(rewardValue);
+            }
         }
     }
 
     private void CollectReward()
     {
-        if (!rewardReady || currentCard == null) return;
+        GameObject cardToCollect = currentCard;
+        if (cardToCollect == null && CardZoomController.CurrentlyZoomedCard != null)
+        {
+            cardToCollect = CardZoomController.CurrentlyZoomedCard.gameObject;
+        }
+
+        if (cardToCollect == null) return;
 
         int rewardValue = 0;
-        if (currentMultiCard != null) rewardValue = currentMultiCard.TotalWinnings;
+        if (currentMultiCard != null)
+        {
+            rewardValue = currentMultiCard.CalculateRevealedWinnings();
+        }
         else if (currentRewardManager != null)
         {
             rewardValue = currentRewardManager.ActiveRewardValue;
             currentRewardManager.ClaimReward();
         }
+        else
+        {
+            MultiZoneScratchCard mc = cardToCollect.GetComponent<MultiZoneScratchCard>();
+            RewardManager rm = cardToCollect.GetComponent<RewardManager>();
+            if (mc != null) rewardValue = mc.CalculateRevealedWinnings();
+            else if (rm != null) rewardValue = rm.ActiveRewardValue;
+        }
 
         AddMoney(rewardValue);
 
-        activeCards.Remove(currentCard);
-        rewardRevealedCards.Remove(currentCard);
+        activeCards.Remove(cardToCollect);
+        rewardRevealedCards.Remove(cardToCollect);
 
-        if (currentScratchCard != null) currentScratchCard.OnScratched = null;
+        ScratchCard sc = cardToCollect.GetComponentInChildren<ScratchCard>();
+        if (sc != null) sc.OnScratched = null;
         if (CardInfoPanelUI.Instance != null) CardInfoPanelUI.Instance.HidePanel();
 
-        Destroy(currentCard);
+        Destroy(cardToCollect);
         currentCard = null;
         currentScratchCard = null;
         currentMultiCard = null;
@@ -385,6 +454,41 @@ public class GameManager : MonoBehaviour
         rewardReady = false;
 
         if (collectRewardButton != null) collectRewardButton.SetActive(false);
+    }
+
+    /// <summary>
+    /// Discards the currently active / zoomed scratch card without claiming winnings or applying penalties.
+    /// Can be called via the Trash Bin GameObject raycast or directly by a UI Button.
+    /// </summary>
+    public void DiscardCurrentCard()
+    {
+        GameObject cardToDiscard = currentCard;
+        if (cardToDiscard == null && CardZoomController.CurrentlyZoomedCard != null)
+        {
+            cardToDiscard = CardZoomController.CurrentlyZoomedCard.gameObject;
+        }
+
+        if (cardToDiscard == null) return;
+
+        activeCards.Remove(cardToDiscard);
+        rewardRevealedCards.Remove(cardToDiscard);
+
+        ScratchCard sc = cardToDiscard.GetComponentInChildren<ScratchCard>();
+        if (sc != null) sc.OnScratched = null;
+
+        if (CardInfoPanelUI.Instance != null)
+            CardInfoPanelUI.Instance.HidePanel();
+
+        if (collectRewardButton != null)
+            collectRewardButton.SetActive(false);
+
+        Destroy(cardToDiscard);
+
+        currentCard = null;
+        currentScratchCard = null;
+        currentMultiCard = null;
+        currentRewardManager = null;
+        rewardReady = false;
     }
 
     private void Start() => UpdateMoneyUI();

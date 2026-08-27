@@ -29,7 +29,21 @@ public class MultiZoneScratchCard : MonoBehaviour
     public StarScratchCardScriptableObject StarCardData => starCardData;
     public ScratchCardData DefaultCardData => defaultCardData;
     public bool IsCompleted { get; private set; } = false;
-    public int TotalWinnings => totalWinnings;
+    public int TotalWinnings => CalculateRevealedWinnings();
+    public int RevealedWinnings => CalculateRevealedWinnings();
+
+    public bool HasAnyZoneRevealed
+    {
+        get
+        {
+            if (zones == null || zones.Length == 0) return false;
+            foreach (var zone in zones)
+            {
+                if (zone != null && zone.IsRevealed) return true;
+            }
+            return false;
+        }
+    }
 
     public Action<int, ScratchZone, Reward> OnZoneRevealedEvent;
     public Action<float> OnCardScratchedEvent;
@@ -319,15 +333,40 @@ public class MultiZoneScratchCard : MonoBehaviour
         CalculateTotalWinnings();
     }
 
-    public int CalculateTotalWinnings()
+    public int CalculateRevealedWinnings()
     {
         totalWinnings = 0;
-        if (assignedSpotRewards == null || assignedSpotRewards.Count == 0) return 0;
+        if (assignedSpotRewards == null || assignedSpotRewards.Count == 0 || zones == null) return 0;
 
+        List<Reward> revealedRewards = new List<Reward>();
+        for (int i = 0; i < zones.Length && i < assignedSpotRewards.Count; i++)
+        {
+            if (zones[i] != null && zones[i].IsRevealed)
+            {
+                if (assignedSpotRewards[i] != null)
+                {
+                    revealedRewards.Add(assignedSpotRewards[i]);
+                }
+            }
+        }
+
+        if (revealedRewards.Count == 0) return 0;
+
+        // Apple Tree Card: Sum all revealed positive/negative prizes
+        if (appleTreeCardData != null)
+        {
+            foreach (var r in revealedRewards)
+            {
+                if (r != null) totalWinnings += r.value;
+            }
+            return totalWinnings;
+        }
+
+        // Quick Cash Card: Match 3
         if (quickCashCardData != null)
         {
             Dictionary<string, (Reward reward, int count)> quickCounts = new Dictionary<string, (Reward, int)>();
-            foreach (var r in assignedSpotRewards)
+            foreach (var r in revealedRewards)
             {
                 if (r == null) continue;
                 string key = !string.IsNullOrEmpty(r.rewardName) ? r.rewardName : r.value.ToString();
@@ -344,7 +383,7 @@ public class MultiZoneScratchCard : MonoBehaviour
 
             foreach (var kvp in quickCounts.Values)
             {
-                if (kvp.count == 3)
+                if (kvp.count >= 3)
                 {
                     totalWinnings += kvp.reward.value;
                 }
@@ -352,20 +391,10 @@ public class MultiZoneScratchCard : MonoBehaviour
             return totalWinnings;
         }
 
-        // Apple Tree Card
-        if (appleTreeCardData != null)
-        {
-            foreach (var r in assignedSpotRewards)
-            {
-                if (r != null) totalWinnings += r.value;
-            }
-            return totalWinnings;
-        }
-
-        // Star Scratch Card & Diğerleri
+        // Star Scratch Card & Others (Match 2 to WIN, 3 for 2x)
         Dictionary<string, (Reward reward, int count)> rewardCounts = new Dictionary<string, (Reward, int)>();
 
-        foreach (var r in assignedSpotRewards)
+        foreach (var r in revealedRewards)
         {
             if (r == null) continue;
             string key = !string.IsNullOrEmpty(r.rewardName) ? r.rewardName : r.value.ToString();
@@ -393,6 +422,11 @@ public class MultiZoneScratchCard : MonoBehaviour
         }
 
         return totalWinnings;
+    }
+
+    public int CalculateTotalWinnings()
+    {
+        return CalculateRevealedWinnings();
     }
 
     private Reward RollWeightedReward(List<Reward> rewardsPool)
