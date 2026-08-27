@@ -22,36 +22,36 @@ MonoBehaviour:
     value: -250
     rewardSprite: {fileID: 21300000, guid: ba79312dc651c18409c5177b4d96a283, type: 3}
     rewardText: 
-    weight: 25
+    weight: 27
   - rewardName: leaf
     value: 0
     rewardSprite: {fileID: 21300000, guid: 2a18e670dbecd3a4da01f94c32d59ec8, type: 3}
     rewardText: 
-    weight: 15
+    weight: 20
   - rewardName: bee
     value: 0
     rewardSprite: {fileID: 21300000, guid: 781837acaf50089429fe2428ac914c39, type: 3}
     rewardText: 
-    weight: 15
+    weight: 20
   - rewardName: flower
     value: 0
     rewardSprite: {fileID: 21300000, guid: fbeb61aa6c1d5fa4982e84edb7916fd7, type: 3}
     rewardText: 
-    weight: 15
+    weight: 20
   - rewardName: green apple
     value: 250
     rewardSprite: {fileID: 21300000, guid: 0cf1b62af3aea2c43a00a54fa312e9e6, type: 3}
     rewardText: 
-    weight: 15
+    weight: 5
   - rewardName: red apple
     value: 500
     rewardSprite: {fileID: 21300000, guid: ffde89c03e8eedc4c8344d85e62a9b59, type: 3}
     rewardText: 
-    weight: 10
+    weight: 5
   - rewardName: golden apple
     value: 1000
     rewardSprite: {fileID: 21300000, guid: 34adff75a3de39446b3763788911131d, type: 3}
     rewardText: 
-    weight: 5
+    weight: 3
   zoneRevealThreshold: 0.9
   overallCardThreshold: 1

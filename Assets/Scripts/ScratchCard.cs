@@ -3,7 +3,21 @@ using System;
 
 public class ScratchCard : MonoBehaviour
 {
-    public int brushRadius = 20;
+    [SerializeField] private int baseBrushRadius = 20;
+
+    public int brushRadius
+    {
+        get
+        {
+            if (UpgradeManager.Instance != null)
+                return UpgradeManager.Instance.CurrentBrushRadius;
+            return baseBrushRadius;
+        }
+        set
+        {
+            baseBrushRadius = value;
+        }
+    }
     private SpriteRenderer spriteRenderer;
     private Texture2D scratchTex;
 

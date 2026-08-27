@@ -5,6 +5,33 @@ using System.Collections.Generic;
 
 public class GameManager : MonoBehaviour
 {
+    // ─────────────────────────── Singleton ────────────────────────────
+    public static GameManager Instance { get; private set; }
+
+    /// <summary>
+    /// Fired whenever the player's money balance changes.
+    /// Passes the new balance. Subscribe in UpgradeUI, etc.
+    /// </summary>
+    public static event System.Action<int> OnMoneyChanged;
+
+    // ─────────────────────────── Public money API ─────────────────────
+    /// <summary>Current player balance (read-only from outside).</summary>
+    public int PlayerMoney => playerMoney;
+
+    /// <summary>Deducts <paramref name="amount"/> from the player's balance and fires OnMoneyChanged.</summary>
+    public void SpendMoney(int amount)
+    {
+        playerMoney -= amount;
+        UpdateMoneyUI();
+    }
+
+    /// <summary>Adds <paramref name="amount"/> to the player's balance and fires OnMoneyChanged.</summary>
+    public void AddMoney(int amount)
+    {
+        playerMoney += amount;
+        UpdateMoneyUI();
+    }
+
     [Header("Player")]
     [SerializeField] private int startingMoney = 10;
 
@@ -69,6 +96,8 @@ public class GameManager : MonoBehaviour
 
     private void Awake()
     {
+        Instance = this;
+
         playerMoney = startingMoney;
 
         if (mysteryCouponTemplate != null) mysteryCouponTemplate.SetActive(false);
@@ -340,8 +369,7 @@ public class GameManager : MonoBehaviour
             currentRewardManager.ClaimReward();
         }
 
-        playerMoney += rewardValue;
-        UpdateMoneyUI();
+        AddMoney(rewardValue);
 
         activeCards.Remove(currentCard);
         rewardRevealedCards.Remove(currentCard);
@@ -365,6 +393,7 @@ public class GameManager : MonoBehaviour
     {
         if (moneyText != null) moneyText.text = "$" + playerMoney;
         UpdateAffordabilityUI();
+        OnMoneyChanged?.Invoke(playerMoney);
     }
 
     private void UpdateAffordabilityUI()

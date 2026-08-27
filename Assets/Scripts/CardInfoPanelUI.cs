@@ -123,20 +123,32 @@ public class CardInfoPanelUI : MonoBehaviour
 
         if (rewards == null || rewards.Count == 0) return;
 
+        // Obtain luck-adjusted weights so the displayed percentages reflect the
+        // current Scratch Luck level. Falls back to raw weights when UpgradeManager
+        // is absent (GetModifiedWeights returns raw weights at level 0).
+        List<int> effectiveWeights;
+        if (UpgradeManager.Instance != null)
+            effectiveWeights = UpgradeManager.Instance.GetModifiedWeights(rewards);
+        else
+        {
+            effectiveWeights = new List<int>(rewards.Count);
+            foreach (var r in rewards)
+                effectiveWeights.Add(r != null ? Mathf.Max(1, r.weight) : 1);
+        }
+
         int totalWeight = 0;
-        foreach (var r in rewards)
-            if (r != null) totalWeight += Mathf.Max(1, r.weight);
+        foreach (int w in effectiveWeights) totalWeight += w;
 
         for (int i = 0; i < rewards.Count; i++)
         {
             Reward r = rewards[i];
             if (r == null) continue;
 
-            int weight = Mathf.Max(1, r.weight);
+            int weight  = (i < effectiveWeights.Count) ? effectiveWeights[i] : Mathf.Max(1, r.weight);
             int percent = totalWeight > 0 ? Mathf.RoundToInt((float)weight / totalWeight * 100f) : 0;
 
             string valueDisplay = isAppleTree ? (r.value >= 0 ? $"${r.value}" : $"-${Mathf.Abs(r.value)}") : $"${r.value}";
-            string rowString = $"{percent}%\t\t{valueDisplay}";
+            string rowString    = $"{percent}%\t\t{valueDisplay}";
 
             if (group.customRowTexts != null && i < group.customRowTexts.Length && group.customRowTexts[i] != null)
             {

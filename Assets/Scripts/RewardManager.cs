@@ -52,40 +52,41 @@ public class RewardManager : MonoBehaviour
             return;
         }
 
-        int totalWeight = 0;
-        foreach (Reward reward in rewardsList)
+        // ── Delegate to UpgradeManager so Scratch Luck is respected ─────
+        if (UpgradeManager.Instance != null)
         {
-            totalWeight += reward.weight;
+            activeReward = UpgradeManager.Instance.RollWithLuck(rewardsList);
         }
-
-        int randomValue = Random.Range(0, totalWeight);
-
-
-        activeReward = null;
-        int currentSum = 0;
-        foreach (Reward reward in rewardsList)
+        else
         {
-            currentSum += reward.weight;
-            if (randomValue < currentSum)
+            // ── Fallback: direct weighted roll (no UpgradeManager) ───────
+            int totalWeight = 0;
+            foreach (Reward reward in rewardsList)
+                totalWeight += reward.weight;
+
+            int randomValue = Random.Range(0, totalWeight);
+            activeReward = null;
+            int currentSum = 0;
+            foreach (Reward reward in rewardsList)
             {
-                activeReward = reward;
-                break;
+                currentSum += reward.weight;
+                if (randomValue < currentSum)
+                {
+                    activeReward = reward;
+                    break;
+                }
             }
         }
 
         if (activeReward != null)
         {
-            Debug.Log($"[LootTable] Rolled value: {randomValue} / Total weight: {totalWeight}. Selected: '{activeReward.rewardName}' (Weight: {activeReward.weight})");
+            Debug.Log($"[LootTable] Selected: '{activeReward.rewardName}' (Weight: {activeReward.weight})");
 
             if (targetSpriteRenderer != null)
-            {
                 targetSpriteRenderer.sprite = activeReward.rewardSprite;
-            }
 
             if (targetTextComponent != null)
-            {
                 targetTextComponent.text = activeReward.rewardText;
-            }
         }
     }
 

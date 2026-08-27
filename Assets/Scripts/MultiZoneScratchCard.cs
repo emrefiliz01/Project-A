@@ -397,6 +397,11 @@ public class MultiZoneScratchCard : MonoBehaviour
 
     private Reward RollWeightedReward(List<Reward> rewardsPool)
     {
+        // Delegate to UpgradeManager so the Scratch Luck level is respected.
+        if (UpgradeManager.Instance != null)
+            return UpgradeManager.Instance.RollWithLuck(rewardsPool);
+
+        // ── Fallback (no UpgradeManager in scene) ──────────────────────
         int totalWeight = 0;
         foreach (var r in rewardsPool)
         {
@@ -413,9 +418,7 @@ public class MultiZoneScratchCard : MonoBehaviour
             if (r == null) continue;
             currentSum += Mathf.Max(1, r.weight);
             if (rnd < currentSum)
-            {
                 return r;
-            }
         }
 
         return rewardsPool[0];
