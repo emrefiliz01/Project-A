@@ -13,5 +13,12 @@ public class ScratchCardData : ScriptableObject
     [Range(0.1f, 1.0f)]
     public float scratchThreshold = 0.90f;
 
+    [Header("Localized Reward Symbol Settings")]
+    public bool useLocalizedRewardCheck = false;
+    public Rect rewardSymbolBounds = new Rect(0.25f, 0.25f, 0.5f, 0.5f);
+    [Range(0.1f, 1.0f)]
+    public float symbolZoneThreshold = 0.85f;
+
     public List<Reward> rewardsList = new List<Reward>();
 }
+

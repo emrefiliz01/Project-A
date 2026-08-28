@@ -18,6 +18,14 @@ MonoBehaviour:
   coverSprite: {fileID: 21300000, guid: 8f0292e5138e2ae45b3980635dae9716, type: 3}
   cardBaseSprite: {fileID: 0}
   scratchThreshold: 0.7
+  useLocalizedRewardCheck: 1
+  rewardSymbolBounds:
+    serializedVersion: 2
+    x: 0.25
+    y: 0.25
+    width: 0.5
+    height: 0.5
+  symbolZoneThreshold: 0.85
   rewardsList:
   - rewardName: 10 Dollar Card
     value: 10
