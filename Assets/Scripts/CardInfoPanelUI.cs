@@ -21,6 +21,7 @@ public class CardInfoPanelUI : MonoBehaviour
     [SerializeField] private PanelGroup starCardPanel;
     [SerializeField] private PanelGroup appleTreeCardPanel;
     [SerializeField] private PanelGroup quickCashCardPanel;
+    [SerializeField] private PanelGroup luckyCatCardPanel;
 
     private void Awake()
     {
@@ -75,6 +76,16 @@ public class CardInfoPanelUI : MonoBehaviour
             return;
         }
 
+        if (multiCard != null && multiCard.LuckyCatCardData != null)
+        {
+            if (luckyCatCardPanel != null && luckyCatCardPanel.panelRoot != null)
+            {
+                luckyCatCardPanel.panelRoot.SetActive(true);
+                PopulateGroup(luckyCatCardPanel, multiCard.LuckyCatCardData.cardName, multiCard.LuckyCatCardData.cardDescription, multiCard.LuckyCatCardData.possibleRewards, true);
+            }
+            return;
+}
+
         // 4. MYSTERY COUPON KONTROLÜ
         if (rm != null && rm.CardData != null)
         {
@@ -100,6 +111,9 @@ public class CardInfoPanelUI : MonoBehaviour
 
         if (quickCashCardPanel != null && quickCashCardPanel.panelRoot != null)
             quickCashCardPanel.panelRoot.SetActive(false);
+
+        if (luckyCatCardPanel != null && luckyCatCardPanel.panelRoot != null)
+            luckyCatCardPanel.panelRoot.SetActive(false);
     }
 
     private void PopulateGroup(PanelGroup group, string cardName, string cardDescription, List<Reward> rewards, bool isAppleTree)

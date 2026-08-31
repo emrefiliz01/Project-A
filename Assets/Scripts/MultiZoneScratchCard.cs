@@ -8,6 +8,7 @@ public class MultiZoneScratchCard : MonoBehaviour
     [SerializeField] private QuickCashCardScriptableObject quickCashCardData;
     [SerializeField] private AppleTreeCardScriptableObject appleTreeCardData;
     [SerializeField] private StarScratchCardScriptableObject starCardData;
+    [SerializeField] private LuckyCatCardScriptableObject luckyCatCardData;
     [SerializeField] private ScratchCardData defaultCardData;
 
     [Header("Scratch Zones")]
@@ -27,6 +28,7 @@ public class MultiZoneScratchCard : MonoBehaviour
     public QuickCashCardScriptableObject QuickCashCardData => quickCashCardData;
     public AppleTreeCardScriptableObject AppleTreeCardData => appleTreeCardData;
     public StarScratchCardScriptableObject StarCardData => starCardData;
+    public LuckyCatCardScriptableObject LuckyCatCardData => luckyCatCardData;
     public ScratchCardData DefaultCardData => defaultCardData;
     public bool IsCompleted { get; private set; } = false;
     public int TotalWinnings => CalculateRevealedWinnings();
@@ -89,6 +91,11 @@ public class MultiZoneScratchCard : MonoBehaviour
             {
                 InitializeSpotRewards(defaultCardData.rewardsList);
             }
+            else if (luckyCatCardData != null)
+            {
+                InitializeFromLuckyCatData(luckyCatCardData);
+            }
+            
         }
     }
 
@@ -199,6 +206,38 @@ public class MultiZoneScratchCard : MonoBehaviour
             InitializeSpotRewards(data.possibleRewards);
         }
     }
+
+    public void InitializeFromLuckyCatData(LuckyCatCardScriptableObject data)
+{
+    if (data == null) return;
+    luckyCatCardData = data;
+    overallCompletionThreshold = data.overallCardThreshold;
+
+    if (zones != null)
+    {
+        for (int i = 0; i < zones.Length; i++)
+        {
+            if (zones[i] != null)
+            {
+                zones[i].SetRevealThreshold(data.zoneRevealThreshold);
+
+                if (i == zones.Length - 1 && data.specialZoneCoverSprite != null)
+                {
+                    zones[i].Initialize(data.specialZoneCoverSprite);
+                }
+                else if (data.zoneCoverSprite != null)
+                {
+                    zones[i].Initialize(data.zoneCoverSprite);
+                }
+            }
+        }
+    }
+
+    if (data.possibleRewards != null && data.possibleRewards.Count > 0)
+    {
+        InitializeSpotRewards(data.possibleRewards);
+    }
+}
 
     public void EnsureRewardRenderersExist()
     {
@@ -356,6 +395,16 @@ public class MultiZoneScratchCard : MonoBehaviour
         if (appleTreeCardData != null)
         {
             foreach (var r in revealedRewards)
+            {
+                if (r != null) totalWinnings += r.value;
+            }
+            return totalWinnings;
+        }
+
+        // Lucky Cat Card: Sum all revealed positive/negative prizes
+        if (luckyCatCardData != null)
+        {
+         foreach (var r in revealedRewards)
             {
                 if (r != null) totalWinnings += r.value;
             }

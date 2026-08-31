@@ -1,0 +1,48 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: a2a7262d7bc5ed54f9730fbf529b8b53, type: 3}
+  m_Name: LuckyCatCardData
+  m_EditorClassIdentifier: 
+  cardName: Lucky Cat
+  cardDescription: Watch out for fish bones!
+  purchasePrice: 150000
+  cardBaseSprite: {fileID: 21300000, guid: 271979476f500934c82bca4b0362169c, type: 3}
+  zoneCoverSprite: {fileID: 21300000, guid: a14119919793576438ca1e60569cdd74, type: 3}
+  specialZoneCoverSprite: {fileID: 21300000, guid: 660b6a8ff1dd53143871a1776925a839, type: 3}
+  possibleRewards:
+  - rewardName: Fish Bone
+    value: -500000
+    rewardSprite: {fileID: 21300000, guid: 0deac51c6d0100046865946df9795a7a, type: 3}
+    rewardText: 
+    weight: 25
+  - rewardName: Fish
+    value: 0
+    rewardSprite: {fileID: 21300000, guid: faac3100c2e0c884f9fd845c2190288b, type: 3}
+    rewardText: 
+    weight: 40
+  - rewardName: Flower
+    value: 50000
+    rewardSprite: {fileID: 21300000, guid: 302264c70fba92a469adfdbda59da6f9, type: 3}
+    rewardText: 
+    weight: 25
+  - rewardName: Paw
+    value: 100000
+    rewardSprite: {fileID: 21300000, guid: 8e7a7e65d42c2e2429c79a5a1c0c5459, type: 3}
+    rewardText: 
+    weight: 9
+  - rewardName: Koban
+    value: 2500000
+    rewardSprite: {fileID: 21300000, guid: 9be0dc6e828ca4c4e8132c3b49a406ce, type: 3}
+    rewardText: 
+    weight: 1
+  zoneRevealThreshold: 0.8
+  overallCardThreshold: 1

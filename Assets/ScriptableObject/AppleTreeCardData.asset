@@ -13,7 +13,7 @@ MonoBehaviour:
   m_Name: AppleTreeCardData
   m_EditorClassIdentifier: 
   cardName: Apple Tree Card
-  cardDescription: Find Apples and win $
+  cardDescription: Find apples and win $
   purchasePrice: 500
   cardBaseSprite: {fileID: 21300000, guid: 6f07dc10991fdc849bc8e62729083051, type: 3}
   zoneCoverSprite: {fileID: 21300000, guid: 08eca93e4723fcc4dae7ecfdf800071f, type: 3}

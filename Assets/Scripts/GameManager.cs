@@ -58,6 +58,13 @@ public class GameManager : MonoBehaviour
     [SerializeField] private QuickCashCardScriptableObject quickCashCardDataAsset;
     [SerializeField] private int quickCashCardPrice = 5000;
 
+    [Header("Lucky Cat Card Settings")]
+    [SerializeField] private GameObject luckyCatCardTemplate;
+    [SerializeField] private GameObject buyLuckyCatCardButton;
+    [SerializeField] private LuckyCatCardScriptableObject luckyCatCardDataAsset;
+    [SerializeField] private int luckyCatCardPrice = 150000;
+    [SerializeField] private SpriteRenderer luckyCatCardPriceImage;
+
     [Header("Scene References")]
     [SerializeField] private GameObject mysteryCouponTemplate;
     [SerializeField] private Transform cardDestination;
@@ -163,6 +170,10 @@ public class GameManager : MonoBehaviour
                 else if (trashBinButton != null && hit.collider.gameObject == trashBinButton)
                 {
                     DiscardCurrentCard();
+                }
+                else if (buyLuckyCatCardButton != null && hit.collider.gameObject == buyLuckyCatCardButton)
+                {
+                    TryBuyLuckyCatCard();
                 }
             }
         }
@@ -317,6 +328,42 @@ public class GameManager : MonoBehaviour
             if (quickCashCardDataAsset != null)
             {
                 multiCard.InitializeFromQuickCashData(quickCashCardDataAsset);
+            }
+
+            multiCard.OnZoneRevealedEvent += (idx, zone, r) => OnZoneProgressRevealed(cardRef, multiRef);
+            multiCard.OnCardScratchedEvent += (percentage) => OnCardScratched(cardRef, null, multiRef, null, percentage);
+            multiCard.OnAllZonesRevealedEvent += (mCard) => OnCardScratched(cardRef, null, multiRef, null, 1.0f);
+        }
+
+        activeCards.Add(newCard);
+        AnimateCardToTable(newCard);
+    }
+
+    public void TryBuyLuckyCatCard()
+    {
+        if (activeCards.Count >= maxCards || luckyCatCardTemplate == null) return;
+
+        int price = luckyCatCardDataAsset != null ? luckyCatCardDataAsset.purchasePrice : luckyCatCardPrice;
+        if (playerMoney < price) return;
+
+        playerMoney -= price;
+        UpdateMoneyUI();
+
+        GameObject newCard = Instantiate(luckyCatCardTemplate);
+        newCard.SetActive(true);
+        newCard.transform.position = luckyCatCardTemplate.transform.position;
+        newCard.transform.rotation = luckyCatCardTemplate.transform.rotation;
+        newCard.transform.localScale = luckyCatCardTemplate.transform.localScale;
+
+        MultiZoneScratchCard multiCard = newCard.GetComponent<MultiZoneScratchCard>();
+        if (multiCard != null)
+        {
+            GameObject cardRef = newCard;
+            MultiZoneScratchCard multiRef = multiCard;
+
+            if (luckyCatCardDataAsset != null)
+            {
+                multiCard.InitializeFromLuckyCatData(luckyCatCardDataAsset);
             }
 
             multiCard.OnZoneRevealedEvent += (idx, zone, r) => OnZoneProgressRevealed(cardRef, multiRef);
@@ -621,6 +668,7 @@ public class GameManager : MonoBehaviour
         int starPrice = starCardDataAsset != null ? starCardDataAsset.purchasePrice : (starCardData != null ? starCardData.purchasePrice : starCardPrice);
         int appleTreePrice = appleTreeCardDataAsset != null ? appleTreeCardDataAsset.purchasePrice : appleTreeCardPrice;
         int quickCashPrice = quickCashCardDataAsset != null ? quickCashCardDataAsset.purchasePrice : quickCashCardPrice;
+        int luckyCatPrice = luckyCatCardDataAsset != null ? luckyCatCardDataAsset.purchasePrice : luckyCatCardPrice;
 
         if (mysteryCouponPriceImage == null && buyButton != null) mysteryCouponPriceImage = GetPriceImage(buyButton);
         if (mysteryCouponPriceImage != null) mysteryCouponPriceImage.color = (playerMoney >= mysteryPrice) ? affordableColor : unaffordableColor;
@@ -633,6 +681,9 @@ public class GameManager : MonoBehaviour
 
         if (quickCashCardPriceImage == null && buyQuickCashCardButton != null) quickCashCardPriceImage = GetPriceImage(buyQuickCashCardButton);
         if (quickCashCardPriceImage != null) quickCashCardPriceImage.color = (playerMoney >= quickCashPrice) ? affordableColor : unaffordableColor;
+
+        if (luckyCatCardPriceImage == null && buyLuckyCatCardButton != null) luckyCatCardPriceImage = GetPriceImage(buyLuckyCatCardButton);
+        if (luckyCatCardPriceImage != null) luckyCatCardPriceImage.color = (playerMoney >= luckyCatPrice) ? affordableColor : unaffordableColor;
     }
 
     private SpriteRenderer GetPriceImage(GameObject buttonObj)
