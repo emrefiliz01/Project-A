@@ -48,6 +48,16 @@ public class CardInfoPanelUI : MonoBehaviour
             return;
         }
 
+        if (multiCard != null && multiCard.LuckyCatCardData != null)
+        {
+            if (luckyCatCardPanel != null && luckyCatCardPanel.panelRoot != null)
+            {
+                luckyCatCardPanel.panelRoot.SetActive(true);
+                PopulateGroup(luckyCatCardPanel, multiCard.LuckyCatCardData.cardName, multiCard.LuckyCatCardData.cardDescription, multiCard.LuckyCatCardData.possibleRewards, true);
+            }
+            return;
+        }
+
         if (multiCard != null && multiCard.AppleTreeCardData != null)
         {
             if (appleTreeCardPanel != null && appleTreeCardPanel.panelRoot != null)
@@ -76,17 +86,6 @@ public class CardInfoPanelUI : MonoBehaviour
             return;
         }
 
-        if (multiCard != null && multiCard.LuckyCatCardData != null)
-        {
-            if (luckyCatCardPanel != null && luckyCatCardPanel.panelRoot != null)
-            {
-                luckyCatCardPanel.panelRoot.SetActive(true);
-                PopulateGroup(luckyCatCardPanel, multiCard.LuckyCatCardData.cardName, multiCard.LuckyCatCardData.cardDescription, multiCard.LuckyCatCardData.possibleRewards, true);
-            }
-            return;
-}
-
-        // 4. MYSTERY COUPON KONTROLÜ
         if (rm != null && rm.CardData != null)
         {
             if (mysteryCouponPanel != null && mysteryCouponPanel.panelRoot != null)
@@ -137,9 +136,6 @@ public class CardInfoPanelUI : MonoBehaviour
 
         if (rewards == null || rewards.Count == 0) return;
 
-        // Obtain luck-adjusted weights so the displayed percentages reflect the
-        // current Scratch Luck level. Falls back to raw weights when UpgradeManager
-        // is absent (GetModifiedWeights returns raw weights at level 0).
         List<int> effectiveWeights;
         if (UpgradeManager.Instance != null)
             effectiveWeights = UpgradeManager.Instance.GetModifiedWeights(rewards);
@@ -161,7 +157,8 @@ public class CardInfoPanelUI : MonoBehaviour
             int weight  = (i < effectiveWeights.Count) ? effectiveWeights[i] : Mathf.Max(1, r.weight);
             int percent = totalWeight > 0 ? Mathf.RoundToInt((float)weight / totalWeight * 100f) : 0;
 
-            string valueDisplay = isAppleTree ? (r.value >= 0 ? $"${r.value}" : $"-${Mathf.Abs(r.value)}") : $"${r.value}";
+            // Rakamlar CurrencyFormatter ile K, M formatına çevriliyor:
+            string valueDisplay = CurrencyFormatter.FormatMoney(r.value);
             string rowString    = $"{percent}%\t\t{valueDisplay}";
 
             if (group.customRowTexts != null && i < group.customRowTexts.Length && group.customRowTexts[i] != null)

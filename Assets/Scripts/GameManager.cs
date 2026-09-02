@@ -5,31 +5,51 @@ using System.Collections.Generic;
 
 public class GameManager : MonoBehaviour
 {
-    // ─────────────────────────── Singleton ────────────────────────────
     public static GameManager Instance { get; private set; }
 
-    /// <summary>
-    /// Fired whenever the player's money balance changes.
-    /// Passes the new balance. Subscribe in UpgradeUI, etc.
-    /// </summary>
     public static event System.Action<int> OnMoneyChanged;
 
-    // ─────────────────────────── Public money API ─────────────────────
-    /// <summary>Current player balance (read-only from outside).</summary>
     public int PlayerMoney => playerMoney;
 
-    /// <summary>Deducts <paramref name="amount"/> from the player's balance and fires OnMoneyChanged.</summary>
     public void SpendMoney(int amount)
     {
         playerMoney -= amount;
         UpdateMoneyUI();
     }
 
-    /// <summary>Adds <paramref name="amount"/> to the player's balance and fires OnMoneyChanged.</summary>
     public void AddMoney(int amount)
     {
         playerMoney = Mathf.Max(0, playerMoney + amount);
         UpdateMoneyUI();
+    }
+
+    public int UnfinishedCardCount
+    {
+        get
+        {
+            int count = 0;
+            foreach (var card in activeCards)
+            {
+                if (card == null) continue;
+
+                MultiZoneScratchCard mc = card.GetComponent<MultiZoneScratchCard>();
+                if (mc != null)
+                {
+                    if (!mc.IsCompleted) count++;
+                    continue;
+                }
+
+                ScratchCard sc = card.GetComponentInChildren<ScratchCard>();
+                if (sc != null)
+                {
+                    if (!sc.IsCompleted && !rewardRevealedCards.Contains(card)) count++;
+                    continue;
+                }
+
+                count++;
+            }
+            return count;
+        }
     }
 
     [Header("Player")]
@@ -52,7 +72,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private AppleTreeCardScriptableObject appleTreeCardDataAsset;
     [SerializeField] private int appleTreeCardPrice = 500;
 
-    [Header("Quick Cash Card Settings")] // Yeni eklendi
+    [Header("Quick Cash Card Settings")]
     [SerializeField] private GameObject quickCashCardTemplate;
     [SerializeField] private GameObject buyQuickCashCardButton;
     [SerializeField] private QuickCashCardScriptableObject quickCashCardDataAsset;
@@ -106,8 +126,7 @@ public class GameManager : MonoBehaviour
     [SerializeField] private float scratchThreshold = 0.90f;
 
     [Header("Card Animation")]
-    [SerializeField] private float cardMoveDuration = 0.6f;
-    [SerializeField] private Ease cardMoveEase = Ease.OutBack;
+    [SerializeField] private float cardMoveDuration = 0.35f;
 
     private int playerMoney;
     private List<GameObject> activeCards = new List<GameObject>();
@@ -119,6 +138,7 @@ public class GameManager : MonoBehaviour
     private bool rewardReady = false;
 
     private HashSet<GameObject> rewardRevealedCards = new HashSet<GameObject>();
+    private List<GameObject> completedCardsSnapshot = new List<GameObject>();
 
     private void Awake()
     {
@@ -132,6 +152,7 @@ public class GameManager : MonoBehaviour
         if (starScratchCardTemplate != null) starScratchCardTemplate.SetActive(false);
         if (appleTreeCardTemplate != null) appleTreeCardTemplate.SetActive(false);
         if (quickCashCardTemplate != null) quickCashCardTemplate.SetActive(false);
+        if (luckyCatCardTemplate != null) luckyCatCardTemplate.SetActive(false);
         if (collectRewardButton != null) collectRewardButton.SetActive(false);
 
         UpdateMoneyUI();
@@ -162,6 +183,10 @@ public class GameManager : MonoBehaviour
                 {
                     TryBuyQuickCashCard();
                 }
+                else if (buyLuckyCatCardButton != null && hit.collider.gameObject == buyLuckyCatCardButton)
+                {
+                    TryBuyLuckyCatCard();
+                }
                 else if (collectRewardButton != null && collectRewardButton.activeSelf
                          && hit.collider.gameObject == collectRewardButton)
                 {
@@ -171,17 +196,13 @@ public class GameManager : MonoBehaviour
                 {
                     DiscardCurrentCard();
                 }
-                else if (buyLuckyCatCardButton != null && hit.collider.gameObject == buyLuckyCatCardButton)
-                {
-                    TryBuyLuckyCatCard();
-                }
             }
         }
     }
 
     public void TryBuyCard()
     {
-        if (activeCards.Count >= maxCards) return;
+        if (UnfinishedCardCount >= maxCards) return;
         int price = currentCardData != null ? currentCardData.purchasePrice : 10;
         if (playerMoney < price) return;
 
@@ -190,9 +211,6 @@ public class GameManager : MonoBehaviour
 
         GameObject newCard = Instantiate(mysteryCouponTemplate);
         newCard.SetActive(true);
-        newCard.transform.position = mysteryCouponTemplate.transform.position;
-        newCard.transform.rotation = mysteryCouponTemplate.transform.rotation;
-        newCard.transform.localScale = mysteryCouponTemplate.transform.localScale;
 
         RewardManager rm = newCard.GetComponent<RewardManager>();
         if (rm != null && currentCardData != null) rm.Initialize(currentCardData);
@@ -236,7 +254,7 @@ public class GameManager : MonoBehaviour
 
     public void TryBuyStarCard()
     {
-        if (activeCards.Count >= maxCards || starScratchCardTemplate == null) return;
+        if (UnfinishedCardCount >= maxCards || starScratchCardTemplate == null) return;
         int price = starCardDataAsset != null ? starCardDataAsset.purchasePrice : (starCardData != null ? starCardData.purchasePrice : starCardPrice);
         if (playerMoney < price) return;
 
@@ -245,9 +263,6 @@ public class GameManager : MonoBehaviour
 
         GameObject newCard = Instantiate(starScratchCardTemplate);
         newCard.SetActive(true);
-        newCard.transform.position = starScratchCardTemplate.transform.position;
-        newCard.transform.rotation = starScratchCardTemplate.transform.rotation;
-        newCard.transform.localScale = starScratchCardTemplate.transform.localScale;
 
         MultiZoneScratchCard multiCard = newCard.GetComponent<MultiZoneScratchCard>();
         if (multiCard != null)
@@ -269,7 +284,7 @@ public class GameManager : MonoBehaviour
 
     public void TryBuyAppleTreeCard()
     {
-        if (activeCards.Count >= maxCards || appleTreeCardTemplate == null) return;
+        if (UnfinishedCardCount >= maxCards || appleTreeCardTemplate == null) return;
 
         int price = appleTreeCardDataAsset != null ? appleTreeCardDataAsset.purchasePrice : appleTreeCardPrice;
         if (playerMoney < price) return;
@@ -279,9 +294,6 @@ public class GameManager : MonoBehaviour
 
         GameObject newCard = Instantiate(appleTreeCardTemplate);
         newCard.SetActive(true);
-        newCard.transform.position = appleTreeCardTemplate.transform.position;
-        newCard.transform.rotation = appleTreeCardTemplate.transform.rotation;
-        newCard.transform.localScale = appleTreeCardTemplate.transform.localScale;
 
         MultiZoneScratchCard multiCard = newCard.GetComponent<MultiZoneScratchCard>();
         if (multiCard != null)
@@ -305,7 +317,7 @@ public class GameManager : MonoBehaviour
 
     public void TryBuyQuickCashCard()
     {
-        if (activeCards.Count >= maxCards || quickCashCardTemplate == null) return;
+        if (UnfinishedCardCount >= maxCards || quickCashCardTemplate == null) return;
 
         int price = quickCashCardDataAsset != null ? quickCashCardDataAsset.purchasePrice : quickCashCardPrice;
         if (playerMoney < price) return;
@@ -315,9 +327,6 @@ public class GameManager : MonoBehaviour
 
         GameObject newCard = Instantiate(quickCashCardTemplate);
         newCard.SetActive(true);
-        newCard.transform.position = quickCashCardTemplate.transform.position;
-        newCard.transform.rotation = quickCashCardTemplate.transform.rotation;
-        newCard.transform.localScale = quickCashCardTemplate.transform.localScale;
 
         MultiZoneScratchCard multiCard = newCard.GetComponent<MultiZoneScratchCard>();
         if (multiCard != null)
@@ -341,7 +350,7 @@ public class GameManager : MonoBehaviour
 
     public void TryBuyLuckyCatCard()
     {
-        if (activeCards.Count >= maxCards || luckyCatCardTemplate == null) return;
+        if (UnfinishedCardCount >= maxCards || luckyCatCardTemplate == null) return;
 
         int price = luckyCatCardDataAsset != null ? luckyCatCardDataAsset.purchasePrice : luckyCatCardPrice;
         if (playerMoney < price) return;
@@ -351,9 +360,6 @@ public class GameManager : MonoBehaviour
 
         GameObject newCard = Instantiate(luckyCatCardTemplate);
         newCard.SetActive(true);
-        newCard.transform.position = luckyCatCardTemplate.transform.position;
-        newCard.transform.rotation = luckyCatCardTemplate.transform.rotation;
-        newCard.transform.localScale = luckyCatCardTemplate.transform.localScale;
 
         MultiZoneScratchCard multiCard = newCard.GetComponent<MultiZoneScratchCard>();
         if (multiCard != null)
@@ -377,15 +383,22 @@ public class GameManager : MonoBehaviour
 
     private void AnimateCardToTable(GameObject newCard)
     {
+        if (newCard == null) return;
+
+        newCard.transform.DOKill();
         Vector3 destination = GetRandomDestinationPosition();
-        newCard.transform.DOMove(destination, cardMoveDuration)
-            .SetEase(cardMoveEase)
+        Vector3 targetScale = newCard.transform.localScale;
+        Quaternion targetRotation = Quaternion.Euler(0f, 0f, Random.Range(-3f, 3f));
+
+        newCard.transform.DORotateQuaternion(targetRotation, cardMoveDuration);
+        newCard.transform.DOJump(destination, 0.4f, 1, cardMoveDuration)
+            .SetEase(Ease.OutQuad)
             .OnComplete(() =>
             {
                 CardZoomController czc = newCard.GetComponent<CardZoomController>();
                 if (czc != null)
                 {
-                    czc.SetHomePosition(destination, newCard.transform.rotation, newCard.transform.localScale);
+                    czc.SetHomePosition(destination, targetRotation, targetScale);
                 }
             });
     }
@@ -415,22 +428,20 @@ public class GameManager : MonoBehaviour
     {
         if (card == null || multiCard == null) return;
 
-        currentCard = card;
-        currentMultiCard = multiCard;
-        currentScratchCard = null;
-        currentRewardManager = null;
+        if (CardZoomController.CurrentlyZoomedCard != null && CardZoomController.CurrentlyZoomedCard.gameObject == card)
+        {
+            currentCard = card;
+            currentMultiCard = multiCard;
+            currentScratchCard = null;
+            currentRewardManager = null;
 
-        int rewardValue = multiCard.CalculateRevealedWinnings();
-        UpdateCollectRewardUI(rewardValue, forceShow: multiCard.IsCompleted);
+            int rewardValue = multiCard.CalculateRevealedWinnings();
+            UpdateCollectRewardUI(rewardValue, forceShow: multiCard.IsCompleted);
+        }
     }
 
     private void OnCardScratched(GameObject card, ScratchCard sc, MultiZoneScratchCard multiCard, RewardManager rm, float scratchPercentage)
     {
-        currentCard = card;
-        currentScratchCard = sc;
-        currentMultiCard = multiCard;
-        currentRewardManager = rm;
-
         float targetThreshold = scratchThreshold;
         if (multiCard != null) targetThreshold = multiCard.OverallCompletionThreshold;
         else if (sc != null) targetThreshold = sc.scratchThreshold;
@@ -440,18 +451,26 @@ public class GameManager : MonoBehaviour
         bool isMultiCompleted = multiCard != null && multiCard.IsCompleted;
         bool isFullyFinished = scratchPercentage >= targetThreshold || isScCompleted || isMultiCompleted;
 
-        if ((multiCard != null && multiCard.HasAnyZoneRevealed) || (sc != null && isScCompleted) || (rm != null && isFullyFinished) || (scratchPercentage >= targetThreshold) || isFullyFinished)
-        {
-            int rewardValue = 0;
-            if (multiCard != null) rewardValue = multiCard.CalculateRevealedWinnings();
-            else if (rm != null) rewardValue = rm.ActiveRewardValue;
-
-            UpdateCollectRewardUI(rewardValue, forceShow: isFullyFinished);
-        }
-
         if (isFullyFinished)
         {
             rewardRevealedCards.Add(card);
+        }
+
+        if (CardZoomController.CurrentlyZoomedCard != null && CardZoomController.CurrentlyZoomedCard.gameObject == card)
+        {
+            currentCard = card;
+            currentScratchCard = sc;
+            currentMultiCard = multiCard;
+            currentRewardManager = rm;
+
+            if ((multiCard != null && multiCard.HasAnyZoneRevealed) || (sc != null && isScCompleted) || (rm != null && isFullyFinished) || (scratchPercentage >= targetThreshold) || isFullyFinished)
+            {
+                int rewardValue = 0;
+                if (multiCard != null) rewardValue = multiCard.CalculateRevealedWinnings();
+                else if (rm != null) rewardValue = rm.ActiveRewardValue;
+
+                UpdateCollectRewardUI(rewardValue, forceShow: isFullyFinished);
+            }
         }
     }
 
@@ -481,12 +500,52 @@ public class GameManager : MonoBehaviour
         {
             if (rewardValue >= 0)
             {
-                rewardButtonText.text = "+$" + rewardValue;
+                rewardButtonText.text = "+" + CurrencyFormatter.FormatMoney(rewardValue);
             }
             else
             {
-                rewardButtonText.text = "-$" + Mathf.Abs(rewardValue);
+                rewardButtonText.text = CurrencyFormatter.FormatMoney(rewardValue);
             }
+        }
+    }
+
+    /// <summary>
+    /// Bir kartın kazınmış/ödülü hazır halde olup olmadığını kontrol eder.
+    /// </summary>
+    private bool IsCardCompleted(GameObject card)
+    {
+        if (card == null) return false;
+
+        MultiZoneScratchCard mc = card.GetComponent<MultiZoneScratchCard>();
+        if (mc != null && mc.IsCompleted) return true;
+
+        ScratchCard sc = card.GetComponentInChildren<ScratchCard>();
+        if (sc != null && sc.IsCompleted) return true;
+
+        if (rewardRevealedCards.Contains(card)) return true;
+
+        return false;
+    }
+
+    /// <summary>
+    /// İlk karta tıklandığı an masada bulunan tüm kazınmış kartların anlık fotoğrafını (Snapshot) alır.
+    /// </summary>
+    private void BuildCompletedCardsSnapshot(GameObject initialCard)
+    {
+        completedCardsSnapshot.Clear();
+
+        foreach (var card in activeCards)
+        {
+            if (card != null && IsCardCompleted(card))
+            {
+                completedCardsSnapshot.Add(card);
+            }
+        }
+
+        if (initialCard != null && completedCardsSnapshot.Contains(initialCard))
+        {
+            completedCardsSnapshot.Remove(initialCard);
+            completedCardsSnapshot.Insert(0, initialCard);
         }
     }
 
@@ -500,6 +559,7 @@ public class GameManager : MonoBehaviour
 
         if (cardToCollect == null) return;
 
+        // 1. Ödülü Hesabla ve Parayı Ekle
         int rewardValue = 0;
         if (currentMultiCard != null)
         {
@@ -520,35 +580,76 @@ public class GameManager : MonoBehaviour
 
         AddMoney(rewardValue);
 
+        // 2. Toplanan Kartı Listelerden Sil
         activeCards.Remove(cardToCollect);
         rewardRevealedCards.Remove(cardToCollect);
+        completedCardsSnapshot.Remove(cardToCollect);
 
         ScratchCard sc = cardToCollect.GetComponentInChildren<ScratchCard>();
         if (sc != null) sc.OnScratched = null;
-        if (CardInfoPanelUI.Instance != null) CardInfoPanelUI.Instance.HidePanel();
 
-        SetNormalCursor();
-
-        Destroy(cardToCollect);
+        GameObject cardToDestroy = cardToCollect;
         currentCard = null;
         currentScratchCard = null;
         currentMultiCard = null;
         currentRewardManager = null;
-        rewardReady = false;
 
-        if (collectRewardButton != null) collectRewardButton.SetActive(false);
+        // 3. Anlık Fotoğrafta (Snapshot) Sıradaki Kartı Bul
+        GameObject nextCard = null;
+        while (completedCardsSnapshot.Count > 0)
+        {
+            GameObject candidate = completedCardsSnapshot[0];
+            if (candidate != null && candidate != cardToDestroy && activeCards.Contains(candidate))
+            {
+                nextCard = candidate;
+                break;
+            }
+            else
+            {
+                completedCardsSnapshot.RemoveAt(0);
+            }
+        }
+
+        // Ödülü toplanan eski kartı imha et
+        Destroy(cardToDestroy);
+
+        if (nextCard != null)
+        {
+            // SIĞRADAKİ KAZINMIŞ KARTA ANINDA GEÇİŞ YAP
+            CardZoomController nextCzc = nextCard.GetComponent<CardZoomController>();
+            if (nextCzc != null)
+            {
+                nextCzc.FocusForCollection();
+            }
+            else
+            {
+                OnCardZoomedIn(nextCard);
+            }
+        }
+        else
+        {
+            // Anlık listedeki tüm kartlar bitti: Zoom'dan çık
+            completedCardsSnapshot.Clear();
+
+            if (CardZoomController.CurrentlyZoomedCard != null)
+            {
+                CardZoomController.CurrentlyZoomedCard.ForceUnzoom();
+            }
+
+            if (CardInfoPanelUI.Instance != null) CardInfoPanelUI.Instance.HidePanel();
+            SetNormalCursor();
+            rewardReady = false;
+            if (collectRewardButton != null) collectRewardButton.SetActive(false);
+        }
     }
 
-    /// <summary>
-    /// Discards a specific scratch card GameObject without claiming winnings or applying penalties.
-    /// Used when dragging a card to the Trash Bin or trashing an active card.
-    /// </summary>
     public void DiscardCard(GameObject cardToDiscard)
     {
         if (cardToDiscard == null) return;
 
         activeCards.Remove(cardToDiscard);
         rewardRevealedCards.Remove(cardToDiscard);
+        completedCardsSnapshot.Remove(cardToDiscard);
 
         ScratchCard sc = cardToDiscard.GetComponentInChildren<ScratchCard>();
         if (sc != null) sc.OnScratched = null;
@@ -564,30 +665,66 @@ public class GameManager : MonoBehaviour
         bool wasCurrentOrZoomed = (currentCard == cardToDiscard) ||
                                   (CardZoomController.CurrentlyZoomedCard != null && CardZoomController.CurrentlyZoomedCard.gameObject == cardToDiscard);
 
+        GameObject nextCard = null;
+        if (wasCurrentOrZoomed && completedCardsSnapshot.Count > 0)
+        {
+            while (completedCardsSnapshot.Count > 0)
+            {
+                GameObject candidate = completedCardsSnapshot[0];
+                if (candidate != null && candidate != cardToDiscard && activeCards.Contains(candidate))
+                {
+                    nextCard = candidate;
+                    break;
+                }
+                else
+                {
+                    completedCardsSnapshot.RemoveAt(0);
+                }
+            }
+        }
+
+        Destroy(cardToDiscard);
+
         if (wasCurrentOrZoomed)
         {
-            if (CardInfoPanelUI.Instance != null)
-                CardInfoPanelUI.Instance.HidePanel();
-
-            if (collectRewardButton != null)
-                collectRewardButton.SetActive(false);
-
-            SetNormalCursor();
-
             currentCard = null;
             currentScratchCard = null;
             currentMultiCard = null;
             currentRewardManager = null;
             rewardReady = false;
-        }
 
-        Destroy(cardToDiscard);
+            if (nextCard != null)
+            {
+                CardZoomController nextCzc = nextCard.GetComponent<CardZoomController>();
+                if (nextCzc != null)
+                {
+                    nextCzc.FocusForCollection();
+                }
+                else
+                {
+                    OnCardZoomedIn(nextCard);
+                }
+            }
+            else
+            {
+                completedCardsSnapshot.Clear();
+
+                if (CardZoomController.CurrentlyZoomedCard != null)
+                {
+                    CardZoomController.CurrentlyZoomedCard.ForceUnzoom();
+                }
+
+                if (CardInfoPanelUI.Instance != null)
+                    CardInfoPanelUI.Instance.HidePanel();
+
+                if (collectRewardButton != null)
+                    collectRewardButton.SetActive(false);
+
+                SetNormalCursor();
+            }
+        }
     }
 
-    /// <summary>
-    /// Discards the currently active / zoomed scratch card without claiming winnings or applying penalties.
-    /// Can be called via the Trash Bin GameObject raycast or directly by a UI Button.
-    /// </summary>
     public void DiscardCurrentCard()
     {
         GameObject cardToDiscard = currentCard;
@@ -602,17 +739,20 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Invoked when a card is zoomed in (Scratch Mode).
-    /// Restores the CollectRewardButton if this card already has a reward or zone revealed.
-    /// </summary>
     public void OnCardZoomedIn(GameObject card)
     {
         if (card == null) return;
+
         currentCard = card;
         currentMultiCard = card.GetComponent<MultiZoneScratchCard>();
         currentScratchCard = card.GetComponentInChildren<ScratchCard>();
         currentRewardManager = card.GetComponent<RewardManager>();
+
+        // Eğer yeni bir zoom açılıyorsa ve snapshot boşsa, anlık fotoğrafı al
+        if (IsCardCompleted(card) && completedCardsSnapshot.Count == 0)
+        {
+            BuildCompletedCardsSnapshot(card);
+        }
 
         if (currentMultiCard != null)
         {
@@ -641,15 +781,15 @@ public class GameManager : MonoBehaviour
         }
     }
 
-    /// <summary>
-    /// Invoked when zooming back out to the table view.
-    /// Immediately hides the CollectRewardButton until the card is reopened.
-    /// </summary>
     public void OnCardZoomedOut(GameObject card)
     {
-        if (collectRewardButton != null)
+        if (CardZoomController.CurrentlyZoomedCard == null || CardZoomController.CurrentlyZoomedCard.gameObject == card)
         {
-            collectRewardButton.SetActive(false);
+            completedCardsSnapshot.Clear();
+            if (collectRewardButton != null)
+            {
+                collectRewardButton.SetActive(false);
+            }
         }
     }
 
@@ -657,7 +797,7 @@ public class GameManager : MonoBehaviour
 
     private void UpdateMoneyUI()
     {
-        if (moneyText != null) moneyText.text = "$" + playerMoney;
+        if (moneyText != null) moneyText.text = CurrencyFormatter.FormatMoney(playerMoney);
         UpdateAffordabilityUI();
         OnMoneyChanged?.Invoke(playerMoney);
     }

@@ -121,7 +121,7 @@ public class CardZoomController : MonoBehaviour
         }
     }
 
-private void OnMouseUp()
+    private void OnMouseUp()
     {
         if (isAnimating || isZoomedIn) return;
 
@@ -131,14 +131,21 @@ private void OnMouseUp()
             RestoreSortingOrder();
 
             // 1. ROBOT KONTROLÜ
-            if (IsOverRobot(out ScratchRobot robot))
+            if (IsOverRobot(out ScratchRobot robot, out bool isRobotFull))
             {
-                if (robot.AcceptCard(gameObject))
+                if (!isRobotFull && robot.AcceptCard(gameObject))
                 {
+                    return; // Kart robota başarıyla eklendi
+                }
+                else
+                {
+                    // Robot DOLU! Kart yumuşak bir şekilde sürüklendiği pozisyona geri fırlatılır
+                    transform.DOMove(initialPosition, 0.3f);
                     return;
                 }
             }
 
+            // 2. ÇÖP KUTUSU KONTROLÜ
             if (IsOverTrashBin())
             {
                 if (GameManager.Instance != null)
@@ -152,12 +159,13 @@ private void OnMouseUp()
             }
             else
             {
+                // Masadaki boş bir alana bırakıldı: Yeni yerini Ev Pozisyonu yap
                 SetHomePosition(transform.position, initialRotation, initialScale);
             }
         }
         else
         {
-
+            // Tıklama (Zoom) Mantığı
             if (CurrentlyZoomedCard != null && CurrentlyZoomedCard != this)
             {
                 return;
@@ -200,6 +208,7 @@ private void OnMouseUp()
 
         BoostSortingOrder();
 
+        transform.DOKill();
         transform.DOMove(targetPosition, zoomDuration).SetEase(easeType);
         transform.DORotate(targetRotation, zoomDuration).SetEase(easeType);
 
@@ -208,6 +217,47 @@ private void OnMouseUp()
             .OnComplete(() =>
             {
                 isZoomedIn = true;
+                isAnimating = false;
+                SetScratchableState(true);
+
+                if (GameManager.Instance != null)
+                {
+                    GameManager.Instance.OnCardZoomedIn(gameObject);
+                }
+            });
+    }
+
+    /// <summary>
+    /// Seri ödül toplama (spam collect) sırasında sıradaki kazınmış kartın ekrana takılmadan çok hızlı gelmesini sağlar.
+    /// </summary>
+    public void FocusForCollection()
+    {
+        transform.DOKill();
+
+        CurrentlyZoomedCard = this;
+        isZoomedIn = true;
+        isAnimating = true;
+
+        BoostSortingOrder();
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.SetScratchCursor();
+            GameManager.Instance.OnCardZoomedIn(gameObject);
+        }
+
+        if (CardInfoPanelUI.Instance != null)
+        {
+            CardInfoPanelUI.Instance.ShowPanelForCard(gameObject);
+        }
+
+        float fastDuration = 0.15f; // Seri geçiş için hızlı süre
+        transform.DOMove(targetPosition, fastDuration).SetEase(Ease.OutQuad);
+        transform.DORotate(targetRotation, fastDuration).SetEase(Ease.OutQuad);
+        transform.DOScale(targetScale, fastDuration)
+            .SetEase(Ease.OutQuad)
+            .OnComplete(() =>
+            {
                 isAnimating = false;
                 SetScratchableState(true);
 
@@ -252,6 +302,35 @@ private void OnMouseUp()
                     CurrentlyZoomedCard = null;
                 }
             });
+    }
+
+    /// <summary>
+    /// Dışarıdan (GameManager vb.) kartın zoom modunu zorla kapatıp eski yerine döndürmesini sağlar.
+    /// </summary>
+    public void ForceUnzoom()
+    {
+        if (CurrentlyZoomedCard == this)
+        {
+            CurrentlyZoomedCard = null;
+        }
+
+        isZoomedIn = false;
+        isAnimating = false;
+        SetScratchableState(false);
+
+        transform.DOKill();
+        transform.DOMove(initialPosition, 0.3f).SetEase(Ease.OutQuad);
+        transform.DORotateQuaternion(initialRotation, 0.3f).SetEase(Ease.OutQuad);
+        transform.DOScale(initialScale, 0.3f).SetEase(Ease.OutQuad).OnComplete(() =>
+        {
+            RestoreSortingOrder();
+        });
+
+        if (GameManager.Instance != null)
+        {
+            GameManager.Instance.OnCardZoomedOut(gameObject);
+            GameManager.Instance.SetNormalCursor();
+        }
     }
 
     private void BoostSortingOrder()
@@ -314,7 +393,6 @@ private void OnMouseUp()
             }
         }
     }
-
 
     public bool IsUnfinished()
     {
@@ -446,9 +524,10 @@ private void OnMouseUp()
         return false;
     }
 
-private bool IsOverRobot(out ScratchRobot robot)
+    private bool IsOverRobot(out ScratchRobot robot, out bool isFull)
     {
         robot = null;
+        isFull = false;
         if (Camera.main == null) return false;
 
         Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
@@ -463,12 +542,14 @@ private bool IsOverRobot(out ScratchRobot robot)
                 if (r != null || hit.collider.CompareTag("ScratchRobot"))
                 {
                     robot = r != null ? r : ScratchRobot.Instance;
-                    
-                    return robot != null && !robot.IsProcessing;
+                    if (robot != null)
+                    {
+                        isFull = robot.IsFull;
+                        return true;
+                    }
                 }
             }
         }
         return false;
     }
 }
-

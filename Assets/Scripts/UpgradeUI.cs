@@ -1,31 +1,6 @@
 using UnityEngine;
 using TMPro;
 
-/// <summary>
-/// Drives the two upgrade button containers in the Upgrade Panel UI.
-///
-/// ─── WORLD-SPACE VERSION ─────────────────────────────────────────────────
-/// Works exactly like GameManager's buy buttons: no Canvas, no UI Button
-/// component needed. Click detection uses Physics2D.GetRayIntersection, so
-/// each upgrade container just needs a Collider2D (e.g. BoxCollider2D).
-///
-/// HOW TO SET UP IN THE SCENE
-/// ──────────────────────────
-/// 1. Attach this script to any persistent GameObject (e.g. GameManager or
-///    a dedicated "UpgradeUI" empty object).
-/// 2. Expand the two slots in the Inspector and fill in:
-///      • Click Target  → the world-space GameObject the player clicks
-///                        (BuyScratchSize / BuyScratchLuck).
-///                        ⚠ It MUST have a Collider2D for raycasting to work.
-///      • Name Text     → TextMeshPro (world-space or Canvas) showing the name
-///      • Cost Text     → TextMeshPro showing the price
-///      • Level Text    → TextMeshPro showing the current level
-///      • Icon Renderer → SpriteRenderer showing the upgrade icon
-///                        (leave empty if you don't have an icon sprite)
-/// 3. Make sure UpgradeManager exists in the scene with its UpgradeDefinition
-///    assets assigned.
-/// ─────────────────────────────────────────────────────────────────────────
-/// </summary>
 public class UpgradeUI : MonoBehaviour
 {
     // ─────────────────────────── Inner type ───────────────────────────
@@ -68,7 +43,6 @@ public class UpgradeUI : MonoBehaviour
     // ──────────────────────────── Unity ───────────────────────────────
     private void Start()
     {
-        // Cache delegates so we can unsubscribe the same instance in OnDestroy.
         _onSizeChanged  = _ => RefreshUI();
         _onLuckChanged  = _ => RefreshUI();
         _onMoneyChanged = _ => RefreshUI();
@@ -121,20 +95,14 @@ public class UpgradeUI : MonoBehaviour
     private void TryBuyScratchSize()
     {
         UpgradeManager.Instance?.TryPurchaseScratchSize();
-        // RefreshUI() fires automatically via OnSizeLevelChanged / OnMoneyChanged.
     }
 
     private void TryBuyScratchLuck()
     {
         UpgradeManager.Instance?.TryPurchaseScratchLuck();
-        // RefreshUI() fires automatically via OnLuckLevelChanged / OnMoneyChanged.
     }
 
     // ─────────────────────────── Refresh ──────────────────────────────
-    /// <summary>
-    /// Refreshes both upgrade slots to reflect the current UpgradeManager state.
-    /// Called automatically on every money / level change. Safe to call manually.
-    /// </summary>
     public void RefreshUI()
     {
         if (UpgradeManager.Instance == null) return;
@@ -190,7 +158,7 @@ public class UpgradeUI : MonoBehaviour
             }
             else
             {
-                slot.costText.text  = $"${cost}";
+                slot.costText.text  = CurrencyFormatter.FormatMoney(cost);
                 slot.costText.color = canAfford ? affordableColor : unaffordableColor;
             }
         }

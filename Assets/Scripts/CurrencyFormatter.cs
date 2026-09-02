@@ -1,18 +1,40 @@
-using System.Collections;
-using System.Collections.Generic;
-using UnityEngine;
+using System;
 
-public class CurrencyFormatter : MonoBehaviour
+public static class CurrencyFormatter
 {
-    // Start is called before the first frame update
-    void Start()
+    /// <summary>
+    /// Para miktarını K, M, B formatında kısaltarak döndürür.
+    /// Örn: 50000 -> "$50K", -500000 -> "-$500K", 2500000 -> "$2.5M"
+    /// </summary>
+    public static string FormatMoney(long amount)
     {
-        
+        long absAmount = Math.Abs(amount);
+        string sign = amount < 0 ? "-" : "";
+
+        if (absAmount >= 1_000_000_000)
+        {
+            float val = absAmount / 1_000_000_000f;
+            return $"{sign}${val:0.##}B";
+        }
+        if (absAmount >= 1_000_000)
+        {
+            float val = absAmount / 1_000_000f;
+            return $"{sign}${val:0.##}M";
+        }
+        if (absAmount >= 1_000)
+        {
+            float val = absAmount / 1_000f;
+            return $"{sign}${val:0.##}K";
+        }
+
+        return $"{sign}${absAmount}";
     }
 
-    // Update is called once per frame
-    void Update()
+    /// <summary>
+    /// int türündeki veriler için aşırı yükleme (Overload).
+    /// </summary>
+    public static string FormatMoney(int amount)
     {
-        
+        return FormatMoney((long)amount);
     }
 }

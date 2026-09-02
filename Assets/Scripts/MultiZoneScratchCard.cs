@@ -95,7 +95,6 @@ public class MultiZoneScratchCard : MonoBehaviour
             {
                 InitializeFromLuckyCatData(luckyCatCardData);
             }
-            
         }
     }
 
@@ -134,7 +133,6 @@ public class MultiZoneScratchCard : MonoBehaviour
                 {
                     zones[i].SetRevealThreshold(data.zoneRevealThreshold);
 
-                    // Son dizilim elemanı (Bonus Spot) için bonusZoneCoverSprite kullan
                     if (i == zones.Length - 1 && data.bonusZoneCoverSprite != null)
                     {
                         zones[i].Initialize(data.bonusZoneCoverSprite);
@@ -208,36 +206,36 @@ public class MultiZoneScratchCard : MonoBehaviour
     }
 
     public void InitializeFromLuckyCatData(LuckyCatCardScriptableObject data)
-{
-    if (data == null) return;
-    luckyCatCardData = data;
-    overallCompletionThreshold = data.overallCardThreshold;
-
-    if (zones != null)
     {
-        for (int i = 0; i < zones.Length; i++)
-        {
-            if (zones[i] != null)
-            {
-                zones[i].SetRevealThreshold(data.zoneRevealThreshold);
+        if (data == null) return;
+        luckyCatCardData = data;
+        overallCompletionThreshold = data.overallCardThreshold;
 
-                if (i == zones.Length - 1 && data.specialZoneCoverSprite != null)
+        if (zones != null)
+        {
+            for (int i = 0; i < zones.Length; i++)
+            {
+                if (zones[i] != null)
                 {
-                    zones[i].Initialize(data.specialZoneCoverSprite);
-                }
-                else if (data.zoneCoverSprite != null)
-                {
-                    zones[i].Initialize(data.zoneCoverSprite);
+                    zones[i].SetRevealThreshold(data.zoneRevealThreshold);
+
+                    if (i == zones.Length - 1 && data.specialZoneCoverSprite != null)
+                    {
+                        zones[i].Initialize(data.specialZoneCoverSprite);
+                    }
+                    else if (data.zoneCoverSprite != null)
+                    {
+                        zones[i].Initialize(data.zoneCoverSprite);
+                    }
                 }
             }
         }
-    }
 
-    if (data.possibleRewards != null && data.possibleRewards.Count > 0)
-    {
-        InitializeSpotRewards(data.possibleRewards);
+        if (data.possibleRewards != null && data.possibleRewards.Count > 0)
+        {
+            InitializeSpotRewards(data.possibleRewards);
+        }
     }
-}
 
     public void EnsureRewardRenderersExist()
     {
@@ -372,6 +370,37 @@ public class MultiZoneScratchCard : MonoBehaviour
         CalculateTotalWinnings();
     }
 
+    public void RevealAllZones()
+    {
+        if (zones != null)
+        {
+            for (int i = 0; i < zones.Length; i++)
+            {
+                if (zones[i] != null)
+                {
+                    ScratchCard sc = zones[i].GetComponentInChildren<ScratchCard>(true);
+                    if (sc != null)
+                    {
+                        sc.ClearAll();
+                    }
+                }
+            }
+        }
+
+        ScratchCard[] allScratchCards = GetComponentsInChildren<ScratchCard>(true);
+        foreach (var sc in allScratchCards)
+        {
+            if (sc != null) sc.ClearAll();
+        }
+
+        CheckCardCompletion();
+        if (!IsCompleted)
+        {
+            IsCompleted = true;
+            OnAllZonesRevealedEvent?.Invoke(this);
+        }
+    }
+
     public int CalculateRevealedWinnings()
     {
         totalWinnings = 0;
@@ -404,7 +433,7 @@ public class MultiZoneScratchCard : MonoBehaviour
         // Lucky Cat Card: Sum all revealed positive/negative prizes
         if (luckyCatCardData != null)
         {
-         foreach (var r in revealedRewards)
+            foreach (var r in revealedRewards)
             {
                 if (r != null) totalWinnings += r.value;
             }
@@ -480,11 +509,9 @@ public class MultiZoneScratchCard : MonoBehaviour
 
     private Reward RollWeightedReward(List<Reward> rewardsPool)
     {
-        // Delegate to UpgradeManager so the Scratch Luck level is respected.
         if (UpgradeManager.Instance != null)
             return UpgradeManager.Instance.RollWithLuck(rewardsPool);
 
-        // ── Fallback (no UpgradeManager in scene) ──────────────────────
         int totalWeight = 0;
         foreach (var r in rewardsPool)
         {
