@@ -1670,7 +1670,7 @@ GameObject:
   - component: {fileID: 150494063}
   - component: {fileID: 150494062}
   m_Layer: 0
-  m_Name: StarScratchPriceLevelText
+  m_Name: StarScratchLevelText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -3901,7 +3901,7 @@ GameObject:
   - component: {fileID: 327924789}
   - component: {fileID: 327924788}
   m_Layer: 0
-  m_Name: QuickCashPriceLevelText
+  m_Name: QuickCashLevelText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -8124,6 +8124,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   ticketsPanel: {fileID: 1813270060}
   gadgetsPanel: {fileID: 1787622760}
+  ticketsCanvas: {fileID: 1547517205}
   ticketsTabButton: {fileID: 799425907}
   gadgetsTabButton: {fileID: 1588743002}
   ticketsTabSprite: {fileID: 799425908}
@@ -9865,7 +9866,7 @@ GameObject:
   - component: {fileID: 720746101}
   - component: {fileID: 720746100}
   m_Layer: 0
-  m_Name: AppleTreePriceLevelText
+  m_Name: AppleTreeLevelText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -10901,7 +10902,7 @@ GameObject:
   - component: {fileID: 836483863}
   - component: {fileID: 836483862}
   m_Layer: 0
-  m_Name: MysteryCouponPriceLevelText
+  m_Name: MysteryCouponLevelText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -15225,16 +15226,26 @@ MonoBehaviour:
   buyLuckyCatCardButton: {fileID: 195264358}
   luckyCatCardDataAsset: {fileID: 11400000, guid: a31bb1efeb1bc914b8787ddc7b4b7f7a, type: 2}
   luckyCatCardPrice: 150000
-  luckyCatCardPriceImage: {fileID: 0}
   mysteryCouponTemplate: {fileID: 454553749}
   cardDestination: {fileID: 1552482537}
   collectRewardButton: {fileID: 2050133142}
   buyButton: {fileID: 1486565718}
   moneyText: {fileID: 1592511729}
-  mysteryCouponPriceImage: {fileID: 0}
-  starCardPriceImage: {fileID: 0}
-  appleTreeCardPriceImage: {fileID: 0}
-  quickCashCardPriceImage: {fileID: 0}
+  mysteryCouponPriceText: {fileID: 2066922867}
+  starScratchPriceText: {fileID: 483593081}
+  appleTreePriceText: {fileID: 412625502}
+  quickCashPriceText: {fileID: 1380029757}
+  luckyCatPriceText: {fileID: 1481636142}
+  mysteryCouponLevelText: {fileID: 836483862}
+  starScratchLevelText: {fileID: 150494062}
+  appleTreeLevelText: {fileID: 720746100}
+  quickCashLevelText: {fileID: 327924788}
+  luckyCatLevelText: {fileID: 1778206757}
+  mysteryCouponExpBarFill: {fileID: 1868756092}
+  starScratchExpBarFill: {fileID: 642420387}
+  appleTreeExpBarFill: {fileID: 1926210581}
+  quickCashExpBarFill: {fileID: 1190663531}
+  luckyCatExpBarFill: {fileID: 1743224322}
   affordableColor: {r: 1, g: 1, b: 1, a: 1}
   unaffordableColor: {r: 1, g: 0, b: 0, a: 1}
   rewardButtonText: {fileID: 261152202}
@@ -18772,7 +18783,7 @@ MonoBehaviour:
   _SortingLayer: 0
   _SortingLayerID: 0
   _SortingOrder: 0
-  m_hasFontAssetChanged: 1
+  m_hasFontAssetChanged: 0
   m_renderer: {fileID: 1681422635}
   m_maskType: 0
 --- !u!23 &1681422635
@@ -20274,7 +20285,7 @@ GameObject:
   - component: {fileID: 1778206758}
   - component: {fileID: 1778206757}
   m_Layer: 0
-  m_Name: LuckyCatPriceLevelText
+  m_Name: LuckyCatLevelText
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -23620,7 +23631,7 @@ MonoBehaviour:
   _SortingLayer: 0
   _SortingLayerID: 0
   _SortingOrder: 0
-  m_hasFontAssetChanged: 1
+  m_hasFontAssetChanged: 0
   m_renderer: {fileID: 2040858942}
   m_maskType: 0
 --- !u!23 &2040858942
@@ -23932,7 +23943,7 @@ MonoBehaviour:
   _SortingLayer: 0
   _SortingLayerID: 0
   _SortingOrder: 0
-  m_hasFontAssetChanged: 1
+  m_hasFontAssetChanged: 0
   m_renderer: {fileID: 2052206455}
   m_maskType: 0
 --- !u!23 &2052206455

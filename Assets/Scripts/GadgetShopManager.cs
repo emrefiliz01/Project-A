@@ -11,6 +11,10 @@ public class GadgetShopManager : MonoBehaviour
     [SerializeField] private GameObject ticketsPanel;
     [SerializeField] private GameObject gadgetsPanel;
 
+    [Header("Optional Canvas / Extra Panels")]
+    [Tooltip("Tickets paneline ait dışarıdaki Canvas veya Level barlarını tutan obje")]
+    [SerializeField] private GameObject ticketsCanvas;
+
     [Header("Tab Buttons & Visuals")]
     [SerializeField] private GameObject ticketsTabButton;
     [SerializeField] private GameObject gadgetsTabButton;
@@ -116,6 +120,7 @@ public class GadgetShopManager : MonoBehaviour
     public void SelectTicketsTab()
     {
         if (ticketsPanel != null) ticketsPanel.SetActive(true);
+        if (ticketsCanvas != null) ticketsCanvas.SetActive(true);
         if (gadgetsPanel != null) gadgetsPanel.SetActive(false);
 
         if (ticketsTabSprite != null) ticketsTabSprite.color = activeTabColor;
@@ -125,6 +130,7 @@ public class GadgetShopManager : MonoBehaviour
     public void SelectGadgetsTab()
     {
         if (ticketsPanel != null) ticketsPanel.SetActive(false);
+        if (ticketsCanvas != null) ticketsCanvas.SetActive(false);
         if (gadgetsPanel != null) gadgetsPanel.SetActive(true);
 
         if (ticketsTabSprite != null) ticketsTabSprite.color = inactiveTabColor;

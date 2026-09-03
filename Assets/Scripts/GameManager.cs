@@ -1,4 +1,5 @@
 using UnityEngine;
+using UnityEngine.UI;
 using TMPro;
 using DG.Tweening;
 using System.Collections.Generic;
@@ -83,7 +84,6 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject buyLuckyCatCardButton;
     [SerializeField] private LuckyCatCardScriptableObject luckyCatCardDataAsset;
     [SerializeField] private int luckyCatCardPrice = 150000;
-    [SerializeField] private SpriteRenderer luckyCatCardPriceImage;
 
     [Header("Scene References")]
     [SerializeField] private GameObject mysteryCouponTemplate;
@@ -92,11 +92,31 @@ public class GameManager : MonoBehaviour
     [SerializeField] private GameObject buyButton;
     [SerializeField] private TextMeshPro moneyText;
 
-    [Header("Price Image References (Affordability)")]
-    [SerializeField] private SpriteRenderer mysteryCouponPriceImage;
-    [SerializeField] private SpriteRenderer starCardPriceImage;
-    [SerializeField] private SpriteRenderer appleTreeCardPriceImage;
-    [SerializeField] private SpriteRenderer quickCashCardPriceImage;
+    // ──────────────────────────────────────────────────────────────────────────
+    // Ticket Panel UI
+    // ──────────────────────────────────────────────────────────────────────────
+    [Header("Ticket Panel – Price Texts")]
+    [SerializeField] private TMP_Text mysteryCouponPriceText;
+    [SerializeField] private TMP_Text starScratchPriceText;
+    [SerializeField] private TMP_Text appleTreePriceText;
+    [SerializeField] private TMP_Text quickCashPriceText;
+    [SerializeField] private TMP_Text luckyCatPriceText;
+
+    [Header("Ticket Panel – Level Texts")]
+    [SerializeField] private TMP_Text mysteryCouponLevelText;
+    [SerializeField] private TMP_Text starScratchLevelText;
+    [SerializeField] private TMP_Text appleTreeLevelText;
+    [SerializeField] private TMP_Text quickCashLevelText;
+    [SerializeField] private TMP_Text luckyCatLevelText;
+
+    [Header("Ticket Panel – EXP Bar Fills")]
+    [SerializeField] private Image mysteryCouponExpBarFill;
+    [SerializeField] private Image starScratchExpBarFill;
+    [SerializeField] private Image appleTreeExpBarFill;
+    [SerializeField] private Image quickCashExpBarFill;
+    [SerializeField] private Image luckyCatExpBarFill;
+
+    [Header("Ticket Panel – Affordability Colors")]
     [SerializeField] private Color affordableColor = Color.white;
     [SerializeField] private Color unaffordableColor = Color.red;
 
@@ -128,8 +148,16 @@ public class GameManager : MonoBehaviour
     [Header("Card Animation")]
     [SerializeField] private float cardMoveDuration = 0.35f;
 
+    // ── Runtime state ─────────────────────────────────────────────────────────
     private int playerMoney;
     private List<GameObject> activeCards = new List<GameObject>();
+
+    // Card Level & EXP data – one instance per card type
+    private CardLevelData mysteryCouponLevel = new CardLevelData();
+    private CardLevelData starScratchLevel = new CardLevelData();
+    private CardLevelData appleTreeLevel = new CardLevelData();
+    private CardLevelData quickCashLevel = new CardLevelData();
+    private CardLevelData luckyCatLevel = new CardLevelData();
 
     private GameObject currentCard;
     private ScratchCard currentScratchCard;
@@ -139,6 +167,10 @@ public class GameManager : MonoBehaviour
 
     private HashSet<GameObject> rewardRevealedCards = new HashSet<GameObject>();
     private List<GameObject> completedCardsSnapshot = new List<GameObject>();
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Unity Lifecycle
+    // ─────────────────────────────────────────────────────────────────────────
 
     private void Awake()
     {
@@ -156,6 +188,7 @@ public class GameManager : MonoBehaviour
         if (collectRewardButton != null) collectRewardButton.SetActive(false);
 
         UpdateMoneyUI();
+        UpdateAllCardLevelUI();
     }
 
     private void Update()
@@ -199,6 +232,10 @@ public class GameManager : MonoBehaviour
             }
         }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Card Purchase Methods
+    // ─────────────────────────────────────────────────────────────────────────
 
     public void TryBuyCard()
     {
@@ -381,6 +418,10 @@ public class GameManager : MonoBehaviour
         AnimateCardToTable(newCard);
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Card Animation
+    // ─────────────────────────────────────────────────────────────────────────
+
     private void AnimateCardToTable(GameObject newCard)
     {
         if (newCard == null) return;
@@ -388,9 +429,9 @@ public class GameManager : MonoBehaviour
         newCard.transform.DOKill();
         Vector3 destination = GetRandomDestinationPosition();
         Vector3 targetScale = newCard.transform.localScale;
-        Quaternion targetRotation = Quaternion.Euler(0f, 0f, Random.Range(-3f, 3f));
+        Quaternion targetRot = Quaternion.Euler(0f, 0f, Random.Range(-3f, 3f));
 
-        newCard.transform.DORotateQuaternion(targetRotation, cardMoveDuration);
+        newCard.transform.DORotateQuaternion(targetRot, cardMoveDuration);
         newCard.transform.DOJump(destination, 0.4f, 1, cardMoveDuration)
             .SetEase(Ease.OutQuad)
             .OnComplete(() =>
@@ -398,7 +439,7 @@ public class GameManager : MonoBehaviour
                 CardZoomController czc = newCard.GetComponent<CardZoomController>();
                 if (czc != null)
                 {
-                    czc.SetHomePosition(destination, targetRotation, targetScale);
+                    czc.SetHomePosition(destination, targetRot, targetScale);
                 }
             });
     }
@@ -424,6 +465,10 @@ public class GameManager : MonoBehaviour
         return cardDestination.position;
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Scratch / Zone Event Handlers
+    // ─────────────────────────────────────────────────────────────────────────
+
     private void OnZoneProgressRevealed(GameObject card, MultiZoneScratchCard multiCard)
     {
         if (card == null || multiCard == null) return;
@@ -435,8 +480,9 @@ public class GameManager : MonoBehaviour
             currentScratchCard = null;
             currentRewardManager = null;
 
-            int rewardValue = multiCard.CalculateRevealedWinnings();
-            UpdateCollectRewardUI(rewardValue, forceShow: multiCard.IsCompleted);
+            int rawRewardValue = multiCard.CalculateRevealedWinnings();
+            int scaledRewardValue = GetScaledRewardForCard(card, rawRewardValue);
+            UpdateCollectRewardUI(scaledRewardValue, forceShow: multiCard.IsCompleted);
         }
     }
 
@@ -465,11 +511,12 @@ public class GameManager : MonoBehaviour
 
             if ((multiCard != null && multiCard.HasAnyZoneRevealed) || (sc != null && isScCompleted) || (rm != null && isFullyFinished) || (scratchPercentage >= targetThreshold) || isFullyFinished)
             {
-                int rewardValue = 0;
-                if (multiCard != null) rewardValue = multiCard.CalculateRevealedWinnings();
-                else if (rm != null) rewardValue = rm.ActiveRewardValue;
+                int rawRewardValue = 0;
+                if (multiCard != null) rawRewardValue = multiCard.CalculateRevealedWinnings();
+                else if (rm != null) rawRewardValue = rm.ActiveRewardValue;
 
-                UpdateCollectRewardUI(rewardValue, forceShow: isFullyFinished);
+                int scaledRewardValue = GetScaledRewardForCard(card, rawRewardValue);
+                UpdateCollectRewardUI(scaledRewardValue, forceShow: isFullyFinished);
             }
         }
     }
@@ -499,15 +546,15 @@ public class GameManager : MonoBehaviour
         if (shouldShow && rewardButtonText != null)
         {
             if (rewardValue >= 0)
-            {
                 rewardButtonText.text = "+" + CurrencyFormatter.FormatMoney(rewardValue);
-            }
             else
-            {
                 rewardButtonText.text = CurrencyFormatter.FormatMoney(rewardValue);
-            }
         }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Card Completion Helpers
+    // ─────────────────────────────────────────────────────────────────────────
 
     /// <summary>
     /// Bir kartın kazınmış/ödülü hazır halde olup olmadığını kontrol eder.
@@ -549,6 +596,10 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Collect Reward
+    // ─────────────────────────────────────────────────────────────────────────
+
     private void CollectReward()
     {
         GameObject cardToCollect = currentCard;
@@ -559,28 +610,38 @@ public class GameManager : MonoBehaviour
 
         if (cardToCollect == null) return;
 
-        // 1. Ödülü Hesabla ve Parayı Ekle
-        int rewardValue = 0;
+        // ── 1. Calculate base reward value ────────────────────────────────────
+        int rawRewardValue = 0;
         if (currentMultiCard != null)
         {
-            rewardValue = currentMultiCard.CalculateRevealedWinnings();
+            rawRewardValue = currentMultiCard.CalculateRevealedWinnings();
         }
         else if (currentRewardManager != null)
         {
-            rewardValue = currentRewardManager.ActiveRewardValue;
+            rawRewardValue = currentRewardManager.ActiveRewardValue;
             currentRewardManager.ClaimReward();
         }
         else
         {
             MultiZoneScratchCard mc = cardToCollect.GetComponent<MultiZoneScratchCard>();
             RewardManager rm = cardToCollect.GetComponent<RewardManager>();
-            if (mc != null) rewardValue = mc.CalculateRevealedWinnings();
-            else if (rm != null) rewardValue = rm.ActiveRewardValue;
+            if (mc != null) rawRewardValue = mc.CalculateRevealedWinnings();
+            else if (rm != null) rawRewardValue = rm.ActiveRewardValue;
         }
 
+        // ── 2. Scale reward by card level, then add to player wallet ──────────
+        CardLevelData levelData = GetLevelDataForCard(cardToCollect);
+        int rewardValue = levelData != null ? levelData.ScaleReward(rawRewardValue) : rawRewardValue;
         AddMoney(rewardValue);
 
-        // 2. Toplanan Kartı Listelerden Sil
+        // ── 3. Grant +1 EXP for the collected card type and refresh the UI ────
+        if (levelData != null)
+        {
+            levelData.AddEXP();
+            UpdateCardLevelUIForCard(cardToCollect);
+        }
+
+        // ── 4. Remove collected card from all tracking lists ──────────────────
         activeCards.Remove(cardToCollect);
         rewardRevealedCards.Remove(cardToCollect);
         completedCardsSnapshot.Remove(cardToCollect);
@@ -594,7 +655,7 @@ public class GameManager : MonoBehaviour
         currentMultiCard = null;
         currentRewardManager = null;
 
-        // 3. Anlık Fotoğrafta (Snapshot) Sıradaki Kartı Bul
+        // ── 5. Find next completed card in snapshot ───────────────────────────
         GameObject nextCard = null;
         while (completedCardsSnapshot.Count > 0)
         {
@@ -610,7 +671,7 @@ public class GameManager : MonoBehaviour
             }
         }
 
-        // Ödülü toplanan eski kartı imha et
+        // ── 6. Destroy the collected card ─────────────────────────────────────
         Destroy(cardToDestroy);
 
         if (nextCard != null)
@@ -618,13 +679,9 @@ public class GameManager : MonoBehaviour
             // SIĞRADAKİ KAZINMIŞ KARTA ANINDA GEÇİŞ YAP
             CardZoomController nextCzc = nextCard.GetComponent<CardZoomController>();
             if (nextCzc != null)
-            {
                 nextCzc.FocusForCollection();
-            }
             else
-            {
                 OnCardZoomedIn(nextCard);
-            }
         }
         else
         {
@@ -632,9 +689,7 @@ public class GameManager : MonoBehaviour
             completedCardsSnapshot.Clear();
 
             if (CardZoomController.CurrentlyZoomedCard != null)
-            {
                 CardZoomController.CurrentlyZoomedCard.ForceUnzoom();
-            }
 
             if (CardInfoPanelUI.Instance != null) CardInfoPanelUI.Instance.HidePanel();
             SetNormalCursor();
@@ -642,6 +697,10 @@ public class GameManager : MonoBehaviour
             if (collectRewardButton != null) collectRewardButton.SetActive(false);
         }
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Discard Card (NO EXP granted here)
+    // ─────────────────────────────────────────────────────────────────────────
 
     public void DiscardCard(GameObject cardToDiscard)
     {
@@ -663,7 +722,8 @@ public class GameManager : MonoBehaviour
         }
 
         bool wasCurrentOrZoomed = (currentCard == cardToDiscard) ||
-                                  (CardZoomController.CurrentlyZoomedCard != null && CardZoomController.CurrentlyZoomedCard.gameObject == cardToDiscard);
+                                  (CardZoomController.CurrentlyZoomedCard != null &&
+                                   CardZoomController.CurrentlyZoomedCard.gameObject == cardToDiscard);
 
         GameObject nextCard = null;
         if (wasCurrentOrZoomed && completedCardsSnapshot.Count > 0)
@@ -697,22 +757,16 @@ public class GameManager : MonoBehaviour
             {
                 CardZoomController nextCzc = nextCard.GetComponent<CardZoomController>();
                 if (nextCzc != null)
-                {
                     nextCzc.FocusForCollection();
-                }
                 else
-                {
                     OnCardZoomedIn(nextCard);
-                }
             }
             else
             {
                 completedCardsSnapshot.Clear();
 
                 if (CardZoomController.CurrentlyZoomedCard != null)
-                {
                     CardZoomController.CurrentlyZoomedCard.ForceUnzoom();
-                }
 
                 if (CardInfoPanelUI.Instance != null)
                     CardInfoPanelUI.Instance.HidePanel();
@@ -739,6 +793,10 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Card Zoom Callbacks
+    // ─────────────────────────────────────────────────────────────────────────
+
     public void OnCardZoomedIn(GameObject card)
     {
         if (card == null) return;
@@ -758,8 +816,9 @@ public class GameManager : MonoBehaviour
         {
             if (currentMultiCard.HasAnyZoneRevealed || currentMultiCard.IsCompleted)
             {
-                int rewardValue = currentMultiCard.CalculateRevealedWinnings();
-                UpdateCollectRewardUI(rewardValue, forceShow: currentMultiCard.IsCompleted);
+                int rawRewardValue = currentMultiCard.CalculateRevealedWinnings();
+                int scaledRewardValue = GetScaledRewardForCard(card, rawRewardValue);
+                UpdateCollectRewardUI(scaledRewardValue, forceShow: currentMultiCard.IsCompleted);
             }
             else
             {
@@ -768,11 +827,13 @@ public class GameManager : MonoBehaviour
         }
         else if (currentScratchCard != null || currentRewardManager != null)
         {
-            bool isCardFinished = (currentScratchCard != null && currentScratchCard.IsCompleted) || rewardRevealedCards.Contains(card);
+            bool isCardFinished = (currentScratchCard != null && currentScratchCard.IsCompleted) ||
+                                  rewardRevealedCards.Contains(card);
             if (isCardFinished)
             {
-                int rewardValue = currentRewardManager != null ? currentRewardManager.ActiveRewardValue : 0;
-                UpdateCollectRewardUI(rewardValue, forceShow: true);
+                int rawRewardValue = currentRewardManager != null ? currentRewardManager.ActiveRewardValue : 0;
+                int scaledRewardValue = GetScaledRewardForCard(card, rawRewardValue);
+                UpdateCollectRewardUI(scaledRewardValue, forceShow: true);
             }
             else
             {
@@ -793,6 +854,10 @@ public class GameManager : MonoBehaviour
         }
     }
 
+    // ─────────────────────────────────────────────────────────────────────────
+    // Money & Affordability UI
+    // ─────────────────────────────────────────────────────────────────────────
+
     private void Start() => UpdateMoneyUI();
 
     private void UpdateMoneyUI()
@@ -810,38 +875,109 @@ public class GameManager : MonoBehaviour
         int quickCashPrice = quickCashCardDataAsset != null ? quickCashCardDataAsset.purchasePrice : quickCashCardPrice;
         int luckyCatPrice = luckyCatCardDataAsset != null ? luckyCatCardDataAsset.purchasePrice : luckyCatCardPrice;
 
-        if (mysteryCouponPriceImage == null && buyButton != null) mysteryCouponPriceImage = GetPriceImage(buyButton);
-        if (mysteryCouponPriceImage != null) mysteryCouponPriceImage.color = (playerMoney >= mysteryPrice) ? affordableColor : unaffordableColor;
-
-        if (starCardPriceImage == null && buyStarCardButton != null) starCardPriceImage = GetPriceImage(buyStarCardButton);
-        if (starCardPriceImage != null) starCardPriceImage.color = (playerMoney >= starPrice) ? affordableColor : unaffordableColor;
-
-        if (appleTreeCardPriceImage == null && buyAppleTreeCardButton != null) appleTreeCardPriceImage = GetPriceImage(buyAppleTreeCardButton);
-        if (appleTreeCardPriceImage != null) appleTreeCardPriceImage.color = (playerMoney >= appleTreePrice) ? affordableColor : unaffordableColor;
-
-        if (quickCashCardPriceImage == null && buyQuickCashCardButton != null) quickCashCardPriceImage = GetPriceImage(buyQuickCashCardButton);
-        if (quickCashCardPriceImage != null) quickCashCardPriceImage.color = (playerMoney >= quickCashPrice) ? affordableColor : unaffordableColor;
-
-        if (luckyCatCardPriceImage == null && buyLuckyCatCardButton != null) luckyCatCardPriceImage = GetPriceImage(buyLuckyCatCardButton);
-        if (luckyCatCardPriceImage != null) luckyCatCardPriceImage.color = (playerMoney >= luckyCatPrice) ? affordableColor : unaffordableColor;
+        SetPriceTextColor(mysteryCouponPriceText, playerMoney >= mysteryPrice);
+        SetPriceTextColor(starScratchPriceText, playerMoney >= starPrice);
+        SetPriceTextColor(appleTreePriceText, playerMoney >= appleTreePrice);
+        SetPriceTextColor(quickCashPriceText, playerMoney >= quickCashPrice);
+        SetPriceTextColor(luckyCatPriceText, playerMoney >= luckyCatPrice);
     }
 
-    private SpriteRenderer GetPriceImage(GameObject buttonObj)
+    /// <summary>Sets a price TMP_Text to affordableColor or unaffordableColor.</summary>
+    private void SetPriceTextColor(TMP_Text text, bool affordable)
     {
-        if (buttonObj == null) return null;
-        Transform priceT = buttonObj.transform.Find("PriceImage");
-        if (priceT == null) priceT = buttonObj.transform.Find("TextImage");
-
-        if (priceT != null) return priceT.GetComponent<SpriteRenderer>();
-
-        SpriteRenderer buttonSR = buttonObj.GetComponent<SpriteRenderer>();
-        SpriteRenderer[] childSRs = buttonObj.GetComponentsInChildren<SpriteRenderer>(true);
-        foreach (var sr in childSRs)
-        {
-            if (sr != buttonSR) return sr;
-        }
-        return null;
+        if (text == null) return;
+        text.color = affordable ? affordableColor : unaffordableColor;
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Card Level & EXP UI
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>Refreshes the level text and EXP bar fill for all five card types.</summary>
+    private void UpdateAllCardLevelUI()
+    {
+        UpdateCardLevelUI(mysteryCouponLevel, mysteryCouponLevelText, mysteryCouponExpBarFill);
+        UpdateCardLevelUI(starScratchLevel, starScratchLevelText, starScratchExpBarFill);
+        UpdateCardLevelUI(appleTreeLevel, appleTreeLevelText, appleTreeExpBarFill);
+        UpdateCardLevelUI(quickCashLevel, quickCashLevelText, quickCashExpBarFill);
+        UpdateCardLevelUI(luckyCatLevel, luckyCatLevelText, luckyCatExpBarFill);
+    }
+
+    /// <summary>Updates a single card type's level text and EXP bar fill.</summary>
+    private void UpdateCardLevelUI(CardLevelData data, TMP_Text levelText, Image expBarFill)
+    {
+        if (data == null) return;
+
+        if (levelText != null)
+            levelText.text = data.IsMaxLevel ? "Lvl 10 (MAX)" : $"Lvl {data.Level}";
+
+        if (expBarFill != null)
+            expBarFill.fillAmount = data.IsMaxLevel
+                ? 1f
+                : (data.RequiredEXP > 0 ? (float)data.CurrentEXP / data.RequiredEXP : 0f);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Card Level Helpers
+    // ─────────────────────────────────────────────────────────────────────────
+
+    /// <summary>
+    /// Returns the CardLevelData instance that corresponds to the given card GameObject.
+    /// Detects card type by inspecting which ScriptableObject reference is set
+    /// on the card's MultiZoneScratchCard component.
+    /// Falls back to mysteryCouponLevel for Mystery Coupon (RewardManager-based) cards.
+    /// Called by CardInfoPanelUI to display level-scaled reward values.
+    /// </summary>
+    public CardLevelData GetLevelDataForCard(GameObject card)
+    {
+        if (card == null) return null;
+
+        MultiZoneScratchCard mc = card.GetComponent<MultiZoneScratchCard>();
+        if (mc != null)
+        {
+            if (mc.QuickCashCardData != null) return quickCashLevel;
+            if (mc.AppleTreeCardData != null) return appleTreeLevel;
+            if (mc.StarCardData != null) return starScratchLevel;
+            if (mc.LuckyCatCardData != null) return luckyCatLevel;
+        }
+
+        // Mystery Coupon – uses RewardManager, not MultiZoneScratchCard
+        return mysteryCouponLevel;
+    }
+
+    /// <summary>
+    /// Scales a card's raw reward value based on its current level.
+    /// </summary>
+    public int GetScaledRewardForCard(GameObject card, int baseReward)
+    {
+        if (card == null) return baseReward;
+        CardLevelData levelData = GetLevelDataForCard(card);
+        return levelData != null ? levelData.ScaleReward(baseReward) : baseReward;
+    }
+
+    /// <summary>
+    /// Refreshes only the Level/EXP UI panel for the card type that matches the given card.
+    /// </summary>
+    private void UpdateCardLevelUIForCard(GameObject card)
+    {
+        if (card == null) return;
+
+        MultiZoneScratchCard mc = card.GetComponent<MultiZoneScratchCard>();
+        if (mc != null)
+        {
+            if (mc.QuickCashCardData != null) { UpdateCardLevelUI(quickCashLevel, quickCashLevelText, quickCashExpBarFill); return; }
+            if (mc.AppleTreeCardData != null) { UpdateCardLevelUI(appleTreeLevel, appleTreeLevelText, appleTreeExpBarFill); return; }
+            if (mc.StarCardData != null) { UpdateCardLevelUI(starScratchLevel, starScratchLevelText, starScratchExpBarFill); return; }
+            if (mc.LuckyCatCardData != null) { UpdateCardLevelUI(luckyCatLevel, luckyCatLevelText, luckyCatExpBarFill); return; }
+        }
+
+        // Mystery Coupon fallback
+        UpdateCardLevelUI(mysteryCouponLevel, mysteryCouponLevelText, mysteryCouponExpBarFill);
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Cursor
+    // ─────────────────────────────────────────────────────────────────────────
 
     public void SetNormalCursor()
     {
@@ -857,13 +993,9 @@ public class GameManager : MonoBehaviour
         }
 
         if (tex != null)
-        {
             Cursor.SetCursor(tex, normalCursorHotspot, cursorMode);
-        }
         else
-        {
             Cursor.SetCursor(null, Vector2.zero, cursorMode);
-        }
     }
 
     public void SetScratchCursor()

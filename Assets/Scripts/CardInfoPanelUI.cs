@@ -35,6 +35,11 @@ public class CardInfoPanelUI : MonoBehaviour
 
         HidePanel();
 
+        // Kartın güncel level verisini GameManager'dan al
+        CardLevelData levelData = GameManager.Instance != null
+            ? GameManager.Instance.GetLevelDataForCard(cardObj)
+            : null;
+
         MultiZoneScratchCard multiCard = cardObj.GetComponent<MultiZoneScratchCard>();
         RewardManager rm = cardObj.GetComponent<RewardManager>();
 
@@ -43,7 +48,7 @@ public class CardInfoPanelUI : MonoBehaviour
             if (quickCashCardPanel != null && quickCashCardPanel.panelRoot != null)
             {
                 quickCashCardPanel.panelRoot.SetActive(true);
-                PopulateGroup(quickCashCardPanel, multiCard.QuickCashCardData.cardName, multiCard.QuickCashCardData.cardDescription, multiCard.QuickCashCardData.possibleRewards, false);
+                PopulateGroup(quickCashCardPanel, multiCard.QuickCashCardData.cardName, multiCard.QuickCashCardData.cardDescription, multiCard.QuickCashCardData.possibleRewards, false, levelData);
             }
             return;
         }
@@ -53,7 +58,7 @@ public class CardInfoPanelUI : MonoBehaviour
             if (luckyCatCardPanel != null && luckyCatCardPanel.panelRoot != null)
             {
                 luckyCatCardPanel.panelRoot.SetActive(true);
-                PopulateGroup(luckyCatCardPanel, multiCard.LuckyCatCardData.cardName, multiCard.LuckyCatCardData.cardDescription, multiCard.LuckyCatCardData.possibleRewards, true);
+                PopulateGroup(luckyCatCardPanel, multiCard.LuckyCatCardData.cardName, multiCard.LuckyCatCardData.cardDescription, multiCard.LuckyCatCardData.possibleRewards, true, levelData);
             }
             return;
         }
@@ -63,7 +68,7 @@ public class CardInfoPanelUI : MonoBehaviour
             if (appleTreeCardPanel != null && appleTreeCardPanel.panelRoot != null)
             {
                 appleTreeCardPanel.panelRoot.SetActive(true);
-                PopulateGroup(appleTreeCardPanel, multiCard.AppleTreeCardData.cardName, multiCard.AppleTreeCardData.cardDescription, multiCard.AppleTreeCardData.possibleRewards, true);
+                PopulateGroup(appleTreeCardPanel, multiCard.AppleTreeCardData.cardName, multiCard.AppleTreeCardData.cardDescription, multiCard.AppleTreeCardData.possibleRewards, true, levelData);
             }
             return;
         }
@@ -76,11 +81,11 @@ public class CardInfoPanelUI : MonoBehaviour
                 var starData = multiCard.StarCardData;
                 if (starData != null)
                 {
-                    PopulateGroup(starCardPanel, starData.cardName, starData.cardDescription, starData.possibleRewards, false);
+                    PopulateGroup(starCardPanel, starData.cardName, starData.cardDescription, starData.possibleRewards, false, levelData);
                 }
                 else if (multiCard.DefaultCardData != null)
                 {
-                    PopulateGroup(starCardPanel, multiCard.DefaultCardData.cardName, multiCard.DefaultCardData.cardDescription, multiCard.DefaultCardData.rewardsList, false);
+                    PopulateGroup(starCardPanel, multiCard.DefaultCardData.cardName, multiCard.DefaultCardData.cardDescription, multiCard.DefaultCardData.rewardsList, false, levelData);
                 }
             }
             return;
@@ -91,7 +96,7 @@ public class CardInfoPanelUI : MonoBehaviour
             if (mysteryCouponPanel != null && mysteryCouponPanel.panelRoot != null)
             {
                 mysteryCouponPanel.panelRoot.SetActive(true);
-                PopulateGroup(mysteryCouponPanel, rm.CardData.cardName, rm.CardData.cardDescription, rm.CardData.rewardsList, false);
+                PopulateGroup(mysteryCouponPanel, rm.CardData.cardName, rm.CardData.cardDescription, rm.CardData.rewardsList, false, levelData);
             }
             return;
         }
@@ -115,7 +120,7 @@ public class CardInfoPanelUI : MonoBehaviour
             luckyCatCardPanel.panelRoot.SetActive(false);
     }
 
-    private void PopulateGroup(PanelGroup group, string cardName, string cardDescription, List<Reward> rewards, bool isAppleTree)
+    private void PopulateGroup(PanelGroup group, string cardName, string cardDescription, List<Reward> rewards, bool isAppleTree, CardLevelData levelData = null)
     {
         if (group == null) return;
 
@@ -136,6 +141,7 @@ public class CardInfoPanelUI : MonoBehaviour
 
         if (rewards == null || rewards.Count == 0) return;
 
+        // Olasılıklar / Yüzdeler daima ham ağırlıklara göre hesaplanır (Level ile ASLA değişmez)
         List<int> effectiveWeights;
         if (UpgradeManager.Instance != null)
             effectiveWeights = UpgradeManager.Instance.GetModifiedWeights(rewards);
@@ -154,12 +160,13 @@ public class CardInfoPanelUI : MonoBehaviour
             Reward r = rewards[i];
             if (r == null) continue;
 
-            int weight  = (i < effectiveWeights.Count) ? effectiveWeights[i] : Mathf.Max(1, r.weight);
+            int weight = (i < effectiveWeights.Count) ? effectiveWeights[i] : Mathf.Max(1, r.weight);
             int percent = totalWeight > 0 ? Mathf.RoundToInt((float)weight / totalWeight * 100f) : 0;
 
-            // Rakamlar CurrencyFormatter ile K, M formatına çevriliyor:
-            string valueDisplay = CurrencyFormatter.FormatMoney(r.value);
-            string rowString    = $"{percent}%\t\t{valueDisplay}";
+            // Ödül miktarını kartın seviyesine göre ölçeklendir
+            int displayValue = levelData != null ? levelData.ScaleReward(r.value) : r.value;
+            string valueDisplay = CurrencyFormatter.FormatMoney(displayValue);
+            string rowString = $"{percent}%\t\t{valueDisplay}";
 
             if (group.customRowTexts != null && i < group.customRowTexts.Length && group.customRowTexts[i] != null)
             {
