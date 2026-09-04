@@ -30,6 +30,20 @@ public class GadgetShopManager : MonoBehaviour
     [SerializeField] private Transform robotSpawnPoint;       // Robotun doğacağı nokta
     [SerializeField] private int baseRobotPrice = 50000;
 
+    [Header("Fan Purchase Settings")]
+    [SerializeField] private GameObject buyFanButton;
+    [SerializeField] private TextMeshPro fanPriceText;
+    [SerializeField] private GameObject fanInScene;           // Sahnemizdeki Fan objesi
+    [SerializeField] private Transform fanSpawnPoint;         // Fanın doğacağı nokta
+    [SerializeField] private int baseFanPrice = 50000;
+
+    [Header("Luna Purchase Settings")]
+    [SerializeField] private GameObject buyLunaButton;
+    [SerializeField] private TextMeshPro lunaPriceText;
+    [SerializeField] private GameObject lunaInScene;          // Sahnemizdeki Luna objesi
+    [SerializeField] private Transform lunaSpawnPoint;        // Lunanın doğacağı nokta
+    [SerializeField] private int baseLunaPrice = 150000;
+
     [Header("Capacity Upgrade Settings")]
     [SerializeField] private GameObject upgradeCapacityButton;
     [SerializeField] private TextMeshPro capacityPriceText;
@@ -50,6 +64,12 @@ public class GadgetShopManager : MonoBehaviour
 
     // State Variables
     private bool isRobotOwned = false;
+    private bool isFanOwned = false;
+    private bool isLunaOwned = false;
+
+    public bool IsRobotOwned => isRobotOwned;
+    public bool IsFanOwned => isFanOwned;
+    public bool IsLunaOwned => isLunaOwned;
 
     // Capacity Logic: Base 4, Max 32 (+4 per level => Max Lvl 8)
     private int capacityLevel = 1;
@@ -68,10 +88,20 @@ public class GadgetShopManager : MonoBehaviour
 
     private void Start()
     {
-        // Başlangıçta Robot Gizli
+        // Başlangıçta Gadget'lar Gizli
         if (scratchRobotInScene != null)
         {
             scratchRobotInScene.SetActive(false);
+        }
+
+        if (fanInScene != null)
+        {
+            fanInScene.SetActive(false);
+        }
+
+        if (lunaInScene != null)
+        {
+            lunaInScene.SetActive(false);
         }
 
         // Başlangıçta Tickets Paneli Açık
@@ -101,6 +131,14 @@ public class GadgetShopManager : MonoBehaviour
                 else if (clickedObj == buyRobotButton)
                 {
                     TryBuyRobot();
+                }
+                else if (clickedObj == buyFanButton)
+                {
+                    TryBuyFan();
+                }
+                else if (clickedObj == buyLunaButton)
+                {
+                    TryBuyLuna();
                 }
                 else if (clickedObj == upgradeCapacityButton)
                 {
@@ -158,6 +196,50 @@ public class GadgetShopManager : MonoBehaviour
 
                 ApplyCapacityToRobot();
                 ApplySpeedToRobot();
+            }
+
+            UpdateUI();
+        }
+    }
+
+    private void TryBuyFan()
+    {
+        if (isFanOwned) return;
+
+        if (GameManager.Instance != null && GameManager.Instance.PlayerMoney >= baseFanPrice)
+        {
+            GameManager.Instance.SpendMoney(baseFanPrice);
+            isFanOwned = true;
+
+            if (fanInScene != null)
+            {
+                if (fanSpawnPoint != null)
+                {
+                    fanInScene.transform.position = fanSpawnPoint.position;
+                }
+                fanInScene.SetActive(true);
+            }
+
+            UpdateUI();
+        }
+    }
+
+    private void TryBuyLuna()
+    {
+        if (isLunaOwned) return;
+
+        if (GameManager.Instance != null && GameManager.Instance.PlayerMoney >= baseLunaPrice)
+        {
+            GameManager.Instance.SpendMoney(baseLunaPrice);
+            isLunaOwned = true;
+
+            if (lunaInScene != null)
+            {
+                if (lunaSpawnPoint != null)
+                {
+                    lunaInScene.transform.position = lunaSpawnPoint.position;
+                }
+                lunaInScene.SetActive(true);
             }
 
             UpdateUI();
@@ -252,7 +334,33 @@ public class GadgetShopManager : MonoBehaviour
             }
         }
 
-        // 2. Kapasite Upgrade UI
+        // 2. Fan Satın Alma Butonu
+        if (fanPriceText != null)
+        {
+            if (isFanOwned)
+            {
+                fanPriceText.text = "Owned";
+            }
+            else
+            {
+                fanPriceText.text = FormatPriceText(baseFanPrice);
+            }
+        }
+
+        // 3. Luna Satın Alma Butonu
+        if (lunaPriceText != null)
+        {
+            if (isLunaOwned)
+            {
+                lunaPriceText.text = "Owned";
+            }
+            else
+            {
+                lunaPriceText.text = FormatPriceText(baseLunaPrice);
+            }
+        }
+
+        // 4. Kapasite Upgrade UI
         if (capacityLevelText != null)
         {
             capacityLevelText.text = "Lvl " + capacityLevel;
@@ -270,7 +378,7 @@ public class GadgetShopManager : MonoBehaviour
             }
         }
 
-        // 3. Hız Upgrade UI
+        // 5. Hız Upgrade UI
         if (speedLevelText != null)
         {
             speedLevelText.text = "Lvl " + speedLevel;
@@ -303,6 +411,32 @@ public class GadgetShopManager : MonoBehaviour
             else
             {
                 robotPriceText.color = (playerMoney >= baseRobotPrice) ? affordableColor : unaffordableColor;
+            }
+        }
+
+        // Fan Satın Alma Fiyat Rengi
+        if (fanPriceText != null)
+        {
+            if (isFanOwned)
+            {
+                fanPriceText.color = affordableColor;
+            }
+            else
+            {
+                fanPriceText.color = (playerMoney >= baseFanPrice) ? affordableColor : unaffordableColor;
+            }
+        }
+
+        // Luna Satın Alma Fiyat Rengi
+        if (lunaPriceText != null)
+        {
+            if (isLunaOwned)
+            {
+                lunaPriceText.color = affordableColor;
+            }
+            else
+            {
+                lunaPriceText.color = (playerMoney >= baseLunaPrice) ? affordableColor : unaffordableColor;
             }
         }
 

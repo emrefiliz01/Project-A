@@ -130,7 +130,7 @@ public class UpgradeUI : MonoBehaviour
 
     // ─────────────────────────── Per-slot refresh ─────────────────────
     private void RefreshSlot(UpgradeSlotUI slot, UpgradeDefinition definition,
-                             int level, int cost, bool atMax, int playerMoney)
+                             int level, long cost, bool atMax, int playerMoney)
     {
         if (slot == null) return;
 

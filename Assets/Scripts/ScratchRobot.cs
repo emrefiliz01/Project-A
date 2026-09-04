@@ -8,6 +8,7 @@ using DG.Tweening;
 public class ScratchRobot : MonoBehaviour
 {
     public static ScratchRobot Instance { get; private set; }
+    public static event System.Action<GameObject> OnCardProcessed;
 
     [Header("Capacity & Queue Settings")]
     [SerializeField] private int maxCapacity = 4;
@@ -20,6 +21,8 @@ public class ScratchRobot : MonoBehaviour
     [SerializeField] private Transform cardHoldingSpot;      // Ağız/Giriş
     [SerializeField] private Transform cardDestinationSpot;  // İç/Kayma noktası
     [SerializeField] private Transform cardThrowSpot;        // Masaya fırlatma
+
+    public Transform IntakeSpot => cardHoldingSpot != null ? cardHoldingSpot : transform;
 
     [Header("Throw Scatter Settings")]
     [Tooltip("Kartlar fırlatılırken masaya ne kadar dağınık saçılacak? (X ve Y ekseni varyasyonu)")]
@@ -62,8 +65,8 @@ public class ScratchRobot : MonoBehaviour
 
     public bool AcceptCard(GameObject cardObj)
     {
-        // 1. Robot doluysa, kart yoksa VEYA kart zaten kazınmışsa KABUL ETME!
-        if (IsFull || cardObj == null || IsCardScratched(cardObj)) return false;
+        // 1. Robot doluysa, kart yoksa, zaten robottaysa VEYA kart zaten kazınmışsa KABUL ETME!
+        if (IsFull || cardObj == null || IsCardScratched(cardObj) || IsCardInRobot(cardObj)) return false;
 
         SetCardInteractions(cardObj, false);
 
@@ -85,9 +88,18 @@ public class ScratchRobot : MonoBehaviour
     }
 
     /// <summary>
+    /// Kartın şu anda robotun içinde işlendiğini veya robotun kuyruk istifinde olduğunu kontrol eder.
+    /// </summary>
+    public bool IsCardInRobot(GameObject cardObj)
+    {
+        if (cardObj == null) return false;
+        return currentProcessingCard == cardObj || cardQueueList.Contains(cardObj);
+    }
+
+    /// <summary>
     /// Kartın daha önce kazınıp kazınmadığını veya tamamlanıp tamamlanmadığını kontrol eder.
     /// </summary>
-    private bool IsCardScratched(GameObject cardObj)
+    public static bool IsCardScratched(GameObject cardObj)
     {
         if (cardObj == null) return false;
 
@@ -164,6 +176,8 @@ public class ScratchRobot : MonoBehaviour
 
     private IEnumerator ProcessSingleCardRoutine(GameObject cardObj)
     {
+        if (cardObj == null) yield break;
+
         Vector3 originalScale = cardOriginalScales.TryGetValue(cardObj, out Vector3 storedScale) ? storedScale : cardObj.transform.localScale;
         Vector3 targetProcessingScale = originalScale * processingScaleFactor;
 
@@ -176,6 +190,7 @@ public class ScratchRobot : MonoBehaviour
         cardObj.transform.DORotate(Vector3.zero, moveInDuration);
 
         yield return new WaitForSeconds(moveInDuration);
+        if (cardObj == null) yield break;
 
         // 2. Robotun içine girme katmanı
         int robotOrder = robotSpriteRenderer != null ? robotSpriteRenderer.sortingOrder : 10;
@@ -186,6 +201,7 @@ public class ScratchRobot : MonoBehaviour
         cardObj.transform.DOMove(destPos, processDuration).SetEase(Ease.Linear);
 
         yield return new WaitForSeconds(processDuration);
+        if (cardObj == null) yield break;
 
         // 4. Tüm alanları aç
         MultiZoneScratchCard multiCard = cardObj.GetComponent<MultiZoneScratchCard>();
@@ -223,17 +239,22 @@ public class ScratchRobot : MonoBehaviour
             .SetEase(throwEase)
             .OnComplete(() =>
             {
-                SetCardInteractions(cardObj, true);
-
-                CardZoomController czc = cardObj.GetComponent<CardZoomController>();
-                if (czc != null)
+                if (cardObj != null)
                 {
-                    czc.SetHomePosition(finalThrowPos, finalThrowRotation, originalScale);
-                }
+                    SetCardInteractions(cardObj, true);
 
-                if (GameManager.Instance != null)
-                {
-                    GameManager.Instance.OnCardZoomedOut(cardObj);
+                    CardZoomController czc = cardObj.GetComponent<CardZoomController>();
+                    if (czc != null)
+                    {
+                        czc.SetHomePosition(finalThrowPos, finalThrowRotation, originalScale);
+                    }
+
+                    if (GameManager.Instance != null)
+                    {
+                        GameManager.Instance.OnCardZoomedOut(cardObj);
+                    }
+
+                    OnCardProcessed?.Invoke(cardObj);
                 }
 
                 throwFinished = true;
@@ -252,18 +273,28 @@ public class ScratchRobot : MonoBehaviour
 
     private void SetCardInteractions(GameObject cardObj, bool enable)
     {
+        if (cardObj == null) return;
+
         CardZoomController czc = cardObj.GetComponent<CardZoomController>();
         if (czc != null) czc.enabled = enable;
 
         Collider2D[] colliders = cardObj.GetComponentsInChildren<Collider2D>(true);
-        foreach (var col in colliders) col.enabled = enable;
+        foreach (var col in colliders)
+        {
+            if (col != null) col.enabled = enable;
+        }
 
         ScratchCard[] scratchCards = cardObj.GetComponentsInChildren<ScratchCard>(true);
-        foreach (var sc in scratchCards) sc.enabled = enable;
+        foreach (var sc in scratchCards)
+        {
+            if (sc != null) sc.enabled = enable;
+        }
     }
 
     private void SetCardGroupSortingOrder(GameObject cardObj, int order)
     {
+        if (cardObj == null) return;
+
         SortingGroup sg = cardObj.GetComponent<SortingGroup>();
         if (sg == null) sg = cardObj.AddComponent<SortingGroup>();
         sg.sortingOrder = order;

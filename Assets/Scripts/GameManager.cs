@@ -559,7 +559,7 @@ public class GameManager : MonoBehaviour
     /// <summary>
     /// Bir kartın kazınmış/ödülü hazır halde olup olmadığını kontrol eder.
     /// </summary>
-    private bool IsCardCompleted(GameObject card)
+    public bool IsCardCompleted(GameObject card)
     {
         if (card == null) return false;
 
@@ -572,6 +572,102 @@ public class GameManager : MonoBehaviour
         if (rewardRevealedCards.Contains(card)) return true;
 
         return false;
+    }
+
+    /// <summary>
+    /// Masada bulunan tüm kazınmış/tamamlanmış kartları liste olarak döndürür.
+    /// </summary>
+    public List<GameObject> GetCompletedCards()
+    {
+        List<GameObject> list = new List<GameObject>();
+        for (int i = 0; i < activeCards.Count; i++)
+        {
+            GameObject card = activeCards[i];
+            if (card != null && IsCardCompleted(card))
+            {
+                list.Add(card);
+            }
+        }
+        return list;
+    }
+
+    /// <summary>
+    /// Masadaki veya robot çıkışındaki kazınmış/tamamlanmış bir kartı doğrudan toplar.
+    /// Manuel tıklama ile aynı şekilde seviye çarpanını uygular, parayı ekler ve +1 EXP verir.
+    /// </summary>
+    public bool CollectCardDirectly(GameObject cardToCollect)
+    {
+        if (cardToCollect == null || !activeCards.Contains(cardToCollect)) return false;
+
+        // ── 1. Calculate base reward value ────────────────────────────────────
+        int rawRewardValue = 0;
+        MultiZoneScratchCard mc = cardToCollect.GetComponent<MultiZoneScratchCard>();
+        RewardManager rm = cardToCollect.GetComponent<RewardManager>();
+
+        if (mc != null)
+        {
+            rawRewardValue = mc.CalculateRevealedWinnings();
+        }
+        else if (rm != null)
+        {
+            rawRewardValue = rm.ActiveRewardValue;
+            rm.ClaimReward();
+        }
+
+        // ── 2. Scale reward by card level, then add to player wallet ──────────
+        CardLevelData levelData = GetLevelDataForCard(cardToCollect);
+        int rewardValue = levelData != null ? levelData.ScaleReward(rawRewardValue) : rawRewardValue;
+        AddMoney(rewardValue);
+
+        // ── 3. Grant +1 EXP for the collected card type and refresh the UI ────
+        if (levelData != null)
+        {
+            levelData.AddEXP();
+            UpdateCardLevelUIForCard(cardToCollect);
+        }
+
+        // ── 4. Remove collected card from all tracking lists ──────────────────
+        activeCards.Remove(cardToCollect);
+        rewardRevealedCards.Remove(cardToCollect);
+        completedCardsSnapshot.Remove(cardToCollect);
+
+        ScratchCard sc = cardToCollect.GetComponentInChildren<ScratchCard>();
+        if (sc != null) sc.OnScratched = null;
+
+        if (mc != null)
+        {
+            mc.OnZoneRevealedEvent = null;
+            mc.OnCardScratchedEvent = null;
+            mc.OnAllZonesRevealedEvent = null;
+        }
+
+        bool wasCurrentOrZoomed = (currentCard == cardToCollect) ||
+                                  (CardZoomController.CurrentlyZoomedCard != null &&
+                                   CardZoomController.CurrentlyZoomedCard.gameObject == cardToCollect);
+
+        if (wasCurrentOrZoomed)
+        {
+            currentCard = null;
+            currentScratchCard = null;
+            currentMultiCard = null;
+            currentRewardManager = null;
+            rewardReady = false;
+
+            if (CardZoomController.CurrentlyZoomedCard != null)
+                CardZoomController.CurrentlyZoomedCard.ForceUnzoom();
+
+            if (CardInfoPanelUI.Instance != null)
+                CardInfoPanelUI.Instance.HidePanel();
+
+            if (collectRewardButton != null)
+                collectRewardButton.SetActive(false);
+
+            SetNormalCursor();
+        }
+
+        // ── 5. Destroy the collected card ─────────────────────────────────────
+        Destroy(cardToCollect);
+        return true;
     }
 
     /// <summary>
